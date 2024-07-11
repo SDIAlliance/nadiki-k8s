@@ -1,0 +1,75 @@
+---
+AWSTemplateFormatVersion: '2010-09-09'
+Description: tantlinger-tf-state
+
+# Parameters
+############
+Parameters:
+  Project:
+    Type: String
+    Default: tantlinger
+    Description: Define project
+
+# Resources
+###########
+Resources:
+
+  # User for BitBucket integration
+  ################################
+  GitHubActionsUser:
+    Type: AWS::IAM::User
+    Properties:
+      UserName: tantlinger-github-integration
+      Policies:
+        - PolicyName: ecr
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:PutObject*
+                  - s3:GetObject*
+                  - s3:ListBucket
+                Resource:
+                  - Fn::Sub: arn:aws:s3:::${TerraformStateBucket}/*
+                  - Fn::Sub: arn:aws:s3:::${TerraformStateBucket}
+              - Effect: Allow
+                Action:
+                  - dynamodb:GetItem
+                  - dynamodb:PutItem
+                  - dynamodb:DeleteItem
+                Resource:
+                  - Fn::GetAtt: TerraformStateLockTable.Arn
+
+  # Terraform State Bucket
+  ########################
+  TerraformStateBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName:
+        Fn::Sub: ${Project}-tf-state
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      VersioningConfiguration:
+        Status: Enabled
+      Tags:
+        - Key: name
+          Value:
+            Fn::Sub: ${Project}-tf-state
+
+  # Terraform State Lock Table
+  ############################
+  TerraformStateLockTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      AttributeDefinitions:
+        - AttributeName: LockID
+          AttributeType: S
+      KeySchema:
+        - AttributeName: LockID
+          KeyType: HASH
+      TableName:
+        Fn::Sub: ${Project}-tf-state-lock-table
+      BillingMode: PAY_PER_REQUEST

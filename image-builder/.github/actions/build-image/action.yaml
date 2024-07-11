@@ -1,0 +1,53 @@
+---
+name: Build Image
+description: 'Builds CAPI image for Kubevirt'
+
+inputs:
+  k8s-version:
+    description: 'Kubernetes Version'
+    required: true
+  os:
+    description: 'Base Operating System'
+    required: true
+
+runs:
+  using: composite
+  steps:
+
+    # Build Kubevirt image
+    ######################
+    - name: Build Kubevirt image
+      shell: bash
+      run: |
+
+        # Clone image builder
+        SOURCE_DIR=$(pwd)
+        rm -rf ./image-builder
+
+        # git clone https://github.com/kubernetes-sigs/image-builder.git
+        git clone https://github.com/tantlinger/sig-image-builder.git image-builder
+        cd image-builder/images/capi
+
+         # Disable check for python
+        sed -i '/ensure-python.sh/d' Makefile
+
+        # Copy custom roles
+        cp -a $SOURCE_DIR/ansible/roles/* ansible/roles/
+        cp -a $SOURCE_DIR/ansible/roles/* ansible/windows/roles/
+
+        # Build Image
+        PACKER_VAR_FILES=$SOURCE_DIR/packer/config-${{ inputs.os }}-${{ inputs.k8s-version }}.json make build-kubevirt-qemu-${{ inputs.os }}
+
+        # Upload image to registry
+        docker login localhost:30303 -u nadiki -p password
+
+        cd ./output
+        echo "image tag ${{ inputs.os }}-${{ inputs.k8s-version }}-container-disk:latest localhost:30303/kubevirt/${{ inputs.os }}-${{ inputs.k8s-version }}-container-disk:latest"
+        echo $(pwd)
+        echo $(ls -la)
+        docker image tag ${{ inputs.os }}-${{ inputs.k8s-version }}-container-disk:latest localhost:30303/kubevirt/${{ inputs.os }}-${{ inputs.k8s-version }}-container-disk:latest
+        echo "image push localhost:30303/kubevirt/${{ inputs.os }}-${{ inputs.k8s-version }}-container-disk:latest"
+        docker image push localhost:30303/kubevirt/${{ inputs.os }}-${{ inputs.k8s-version }}-container-disk:latest
+
+        # Cleanup
+        rm -rf ./image-builder

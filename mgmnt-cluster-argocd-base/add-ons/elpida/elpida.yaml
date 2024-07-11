@@ -1,0 +1,9 @@
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: docker-registry-secret
+  namespace: elpida
+data:
+  htpasswd: YWtub3N0aWM6JDJhJDEzJEFFQVN2LnYuSm9vV1hDRTNTS29IUGVudUg3enpYQ3ZKZDQySzJYSXFhVzUwbWd4SWFRTzFH
+type: Opaque

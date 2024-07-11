@@ -1,0 +1,13 @@
+---
+ansible_python_interpreter: /usr/bin/python3
+vswitches:
+  - name: metallb
+    routing_table: 1
+    vlan: 4001
+    gateway: 11.11.11.11
+    addresses:
+      - "{{ hostvars[inventory_hostname]['int_ip_metallb'] }}/24"
+    subnets:
+      - subnet: 11.11.11.11/28
+kube_service_addresses: 10.43.0.0/16
+kube_pods_subnet: 10.42.0.0/16

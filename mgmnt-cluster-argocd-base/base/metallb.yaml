@@ -1,0 +1,118 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: metallb
+  namespace: argocd
+spec:
+  generators:
+    - matrix:
+        generators:
+          - clusters:
+              selector:
+                matchLabels:
+                  provider: "hetzner"
+              values:
+                values_file: hetzner-host
+          - clusters:
+              selector:
+                matchLabels:
+                  clusterType: "host"
+    - matrix:
+        generators:
+          - clusters:
+              selector:
+                matchLabels:
+                  provider: "novoserve"
+              values:
+                values_file: novoserve-mgmnt
+          - clusters:
+              selector:
+                matchLabels:
+                  clusterType: "mgmnt"
+  template:
+    metadata:
+      name: '{{name}}--metallb'
+    spec:
+      project: default
+      sources:
+        - chart: metallb
+          repoURL: https://metallb.github.io/metallb
+          targetRevision: v0.14.4
+          helm:
+            releaseName: metallb
+            valueFiles:
+              - $values/helm/values/metallb/{{values.values_file}}.yaml
+        - repoURL: https://github.com/tantlinger/mgmnt-cluster-argocd-base
+          targetRevision: HEAD
+          ref: values
+      destination:
+        server: '{{server}}'
+        namespace: metallb-system
+      syncPolicy:
+        automated:
+          prune: true
+          allowEmpty: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true
+---
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: metallb-config
+  namespace: argocd
+spec:
+  generators:
+    - matrix:
+        generators:
+          - clusters:
+              selector:
+                matchLabels:
+                  provider: "hetzner"
+              values:
+                metallb_addresspool: 11.11.11.11-11.11.11.11
+                metallb_interface: eth0.4001
+                metallb_pool_name: pool0
+          - clusters:
+              selector:
+                matchLabels:
+                  clusterType: "host"
+    - matrix:
+        generators:
+          - clusters:
+              selector:
+                matchLabels:
+                  provider: "novoserve"
+              values:
+                metallb_addresspool: 11.11.11.11-11.11.11.11
+                metallb_interface: ens10f1
+                metallb_pool_name: pool0
+          - clusters:
+              selector:
+                matchLabels:
+                  clusterType: "mgmnt"
+  template:
+    metadata:
+      name: '{{name}}--metallb-config'
+    spec:
+      project: default
+      source:
+        repoURL: https://github.com/tantlinger/mgmnt-cluster-argocd-base
+        targetRevision: HEAD
+        path: add-ons/metallb
+        helm:
+          values: |
+            metallb_addresspool: "{{values.metallb_addresspool}}"
+            metallb_interface: "{{values.metallb_interface}}"
+            metallb_pool_name: "{{values.metallb_pool_name}}"
+      destination:
+        server: '{{server}}'
+        namespace: metallb-system
+      syncPolicy:
+        automated:
+          prune: true
+          allowEmpty: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true

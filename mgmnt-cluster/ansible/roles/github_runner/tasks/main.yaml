@@ -1,0 +1,50 @@
+---
+- name: Add python repo
+  ansible.builtin.apt_repository:
+    repo: ppa:deadsnakes/ppa
+    state: present
+
+- name: Install dependencies
+  apt:
+    name:
+      # - screen
+      - qemu-kvm
+      - libvirt-daemon-system
+      - libvirt-clients
+      - virtinst
+      - cpu-checker
+      - libguestfs-tools
+      - libosinfo-bin
+      - docker.io
+      - wget
+      - software-properties-common
+      - python3.9
+      - jq
+    state: present
+
+- name: Install pip3.9
+  ansible.builtin.shell: |
+   /usr/bin/curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && /usr/bin/python3.9 get-pip.py
+  args:
+    creates: /usr/local/bin/pip3.9
+
+- name: Install ansible
+  ansible.builtin.pip:
+    name: ansible
+    executable: pip3.9
+
+- name: Add the github system group
+  ansible.builtin.group:
+    name: github
+    state: present
+
+- name: Add the github system user
+  ansible.builtin.user:
+    name: github
+    comment: github
+    group: github
+    groups:
+      - kvm
+      - libvirt
+      - docker
+    shell: /bin/bash

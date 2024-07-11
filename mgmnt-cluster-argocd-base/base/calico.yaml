@@ -1,0 +1,75 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: tigera-operator
+  namespace: argocd
+spec:
+  generators:
+    - clusters:
+        selector:
+          matchLabels:
+            clusterType: "tenant"
+  template:
+    metadata:
+      name: '{{name}}--tigera-operator'
+    spec:
+      project: default
+      source:
+        chart: tigera-operator
+        repoURL: https://docs.tigera.io/calico/charts
+        targetRevision: v3.27.0
+        helm:
+          releaseName: tigera-operator
+          values: |
+            installation:
+              enabled: false
+      destination:
+        server: '{{server}}'
+        namespace: tigera-operator
+      syncPolicy:
+        automated:
+          prune: true
+          allowEmpty: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true
+          - ApplyOutOfSyncOnly=true
+          - ServerSideApply=true
+---
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: calico-config
+  namespace: argocd
+spec:
+  generators:
+    - clusters:
+        selector:
+          matchLabels:
+            clusterType: "tenant"
+  template:
+    metadata:
+      name: '{{name}}--calico-config'
+    spec:
+      project: default
+      source:
+        repoURL: https://github.com/tantlinger/mgmnt-cluster-argocd-base
+        targetRevision: main
+        path: add-ons/calico-config
+        helm:
+          values: |
+            k8s_version: '{{metadata.labels.k8s_version}}'
+            hostName: '{{metadata.labels.hostName}}'
+      destination:
+        server: '{{server}}'
+        namespace: calico-system
+      syncPolicy:
+        automated:
+          prune: true
+          allowEmpty: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true
+          - ServerSideApply=true
+          - ApplyOutOfSyncOnly=true

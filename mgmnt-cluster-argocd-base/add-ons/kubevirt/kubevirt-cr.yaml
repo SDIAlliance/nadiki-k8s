@@ -1,0 +1,45 @@
+---
+apiVersion: kubevirt.io/v1
+kind: KubeVirt
+metadata:
+  name: kubevirt
+  namespace: kubevirt
+spec:
+  certificateRotateStrategy: {}
+  configuration:
+    developerConfiguration:
+      featureGates:
+        - Macvtap
+        - ExpandDisks
+        - LiveMigration
+        - HotplugVolumes
+  customizeComponents: {}
+  imagePullPolicy: IfNotPresent
+  infra:
+    nodePlacement:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: 'kaas/group'
+                    operator: In
+                    values:
+                      - 'control'
+  workloads:
+    nodePlacement:
+      # tolerations:
+      #   - key: "kaas"
+      #     operator: "Equal"
+      #     value: "storage"
+      #     effect: "NoSchedule"
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: 'kaas/group'
+                    operator: In
+                    values:
+                      - 'compute'
+  workloadUpdateStrategy: {}

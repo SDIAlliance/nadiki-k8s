@@ -1,0 +1,46 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: cilium-l2-config
+  namespace: argocd
+spec:
+  generators:
+    - clusters:
+        selector:
+          matchLabels:
+            clusterType: "host"
+        values:
+          pool_name: default-external
+          cidr: "11.11.11.11/28"
+          external_ips: "true"
+          loadbalancer_ips: "true"
+          interface: "eth0.4001"
+  template:
+    metadata:
+      name: '{{name}}--cilium-l2-config'
+    spec:
+      project: default
+      source:
+        repoURL: https://github.com/tantlinger/mgmnt-cluster-argocd-base
+        targetRevision: HEAD
+        path: add-ons/cilium-l2-config
+        helm:
+          values: |
+            pool_name: "{{values.pool_name}}"
+            cidr: "{{values.cidr}}"
+            external_ips: "{{values.external_ips}}"
+            loadbalancer_ips: "{{values.loadbalancer_ips}}"
+            interface: "{{values.interface}}"
+      destination:
+        server: '{{server}}'
+        namespace: kube-vip
+      syncPolicy:
+        automated:
+          prune: true
+          allowEmpty: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true
+          - ServerSideApply=true
+          - ApplyOutOfSyncOnly=true

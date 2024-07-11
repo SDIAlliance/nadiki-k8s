@@ -1,0 +1,6 @@
+---
+pool_name: ""
+cidr: ""
+external_ips: ""
+loadbalancer_ips: ""
+interface: ""

@@ -1,0 +1,43 @@
+apiVersion: operator.tigera.io/v1
+kind: Installation
+metadata:
+  name: default
+spec:
+  calicoNetwork:
+    bgp: Disabled
+    hostPorts: Enabled
+    ipPools:
+      - blockSize: 26
+        cidr: 172.16.0.0/12
+        disableBGPExport: false
+        encapsulation: VXLAN
+        natOutgoing: Enabled
+        nodeSelector: all()
+    linuxDataplane: Iptables
+    windowsDataplane: HNS
+    multiInterfaceMode: None
+    nodeAddressAutodetectionV4:
+      firstFound: true
+  serviceCIDRs:
+    - 10.95.0.0/16
+  cni:
+    ipam:
+      type: Calico
+    type: Calico
+  controlPlaneReplicas: 2
+  flexVolumePath: /usr/libexec/kubernetes/kubelet-plugins/volume/exec/
+  imagePullSecrets: []
+  kubeletVolumePluginPath: /var/lib/kubelet
+  kubernetesProvider: ""
+  logging:
+    cni:
+      logFileMaxAgeDays: 30
+      logFileMaxCount: 10
+      logFileMaxSize: 100Mi
+      logSeverity: Info
+  nodeUpdateStrategy:
+    rollingUpdate:
+      maxUnavailable: 1
+    type: RollingUpdate
+  nonPrivileged: Disabled
+  variant: Calico

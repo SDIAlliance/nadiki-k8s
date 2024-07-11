@@ -1,0 +1,22 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: debug-helper
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/tantlinger/mgmnt-cluster-argocd-base
+    targetRevision: HEAD
+    path: "add-ons/debug-helper"
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: debug-helper
+  syncPolicy:
+    automated:
+      prune: true
+      allowEmpty: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

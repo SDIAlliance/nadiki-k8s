@@ -1,0 +1,70 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: docker-registry
+  namespace: argocd
+spec:
+  generators:
+    - matrix:
+        generators:
+          - clusters:
+              selector:
+                matchLabels:
+                  provider: "hetzner"
+              values:
+                storageClass: longhorn
+                storageSize: 100Gi
+                secret: "nadiki:$2a$13$AEASv.v.JooWXCE3SKoHPenuH7zzXCvJd42K2XIqaW50mgxIaQO1G"
+          - clusters:
+              selector:
+                matchLabels:
+                  clusterType: "host"
+  template:
+    metadata:
+      name: '{{name}}--docker-registry'
+    spec:
+      project: default
+      source:
+        chart: docker-registry
+        repoURL: https://helm.twun.io
+        targetRevision: 2.2.3
+        helm:
+          releaseName: docker-registry
+          values: |
+            persistence:
+              enabled: true
+              size: '{{values.storageSize}}'
+              storageClass: '{{values.storageClass}}'
+            service:
+              type: NodePort
+              port: 5000
+              nodePort: 30303
+            resources:
+              limits:
+                cpu: 100m
+                memory: 128Mi
+              requests:
+                cpu: 100m
+                memory: 128Mi
+            metrics:
+              enabled: true
+              serviceMonitor:
+                enabled: true
+              prometheusRule:
+                enabled: true
+            secrets:
+               # password
+              htpasswd: '{{values.secret}}'
+      destination:
+        server: '{{server}}'
+        namespace: docker-registry
+      syncPolicy:
+        automated:
+          prune: true
+          allowEmpty: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true
+          - ApplyOutOfSyncOnly=true
+          - ServerSideApply=true

@@ -1,0 +1,39 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: vitess-operator
+  namespace: argocd
+spec:
+  generators:
+    - matrix:
+        generators:
+          - clusters:
+              selector:
+                matchLabels:
+                  provider: "hetzner"
+          - clusters:
+              selector:
+                matchLabels:
+                  clusterType: "mgmnt"
+  template:
+    metadata:
+      name: '{{name}}--vitess-operator'
+    spec:
+      project: default
+      source:
+        repoURL: https://github.com/tantlinger/mgmnt-cluster-argocd-base
+        targetRevision: main
+        path: add-ons/vitess-operator
+      destination:
+        server: '{{server}}'
+        namespace: vitess-operator
+      syncPolicy:
+        automated:
+          prune: true
+          allowEmpty: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true
+          - ServerSideApply=true
+          - ApplyOutOfSyncOnly=true

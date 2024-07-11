@@ -1,0 +1,33 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: scaphandre
+  namespace: argocd
+spec:
+  generators:
+    - clusters:
+        selector:
+          matchLabels:
+            clusterType: "host"
+  template:
+    metadata:
+      name: '{{name}}--scaphandre'
+    spec:
+      project: default
+      source:
+        repoURL: https://github.com/tantlinger/mgmnt-cluster-argocd-base
+        targetRevision: main
+        path: add-ons/scaphandre
+      destination:
+        server: '{{server}}'
+        namespace: monitoring
+      syncPolicy:
+        automated:
+          prune: true
+          allowEmpty: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true
+          - ServerSideApply=true
+          - ApplyOutOfSyncOnly=true

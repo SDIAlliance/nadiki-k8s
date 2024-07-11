@@ -1,0 +1,278 @@
+---
+all:
+
+  # Hosts
+  #######
+  hosts:
+
+    # control nodes - hcloud
+    ########################
+    control1.host.fsn1.tantlinger.io:
+      ansible_host: 11.11.11.11
+      ansible_user: root
+      k3s_control_node: true
+      k3s_agent:
+        node-name: control1.host.fsn1.tantlinger.io
+        node-ip: 11.11.11.11
+        k3s_agent:
+        node-label:
+          - "kaas/group=control"
+          - "instance.hetzner.cloud/is-root-server=false"
+          - "kaas/az=falkenstein-1a"
+          - "topology.kubernetes.io/zone=falkenstein-1a"
+          - "topology.kubernetes.io/region=falkenstein-1"
+    control2.host.fsn1.tantlinger.io:
+      ansible_host: 11.11.11.11
+      ansible_user: root
+      k3s_control_node: true
+      k3s_agent:
+        node-name: control2.host.fsn1.tantlinger.io
+        node-ip: 11.11.11.11
+        node-label:
+          - "kaas/group=control"
+          - "instance.hetzner.cloud/is-root-server=false"
+          - "kaas/az=falkenstein-1b"
+          - "topology.kubernetes.io/zone=falkenstein-1b"
+          - "topology.kubernetes.io/region=falkenstein-1"
+    control3.host.fsn1.tantlinger.io:
+      ansible_host: 11.11.11.11
+      ansible_user: root
+      k3s_control_node: true
+      k3s_agent:
+        node-name: control3.host.fsn1.tantlinger.io
+        node-ip: 11.11.11.11
+        node-label:
+          - "kaas/group=control"
+          - "instance.hetzner.cloud/is-root-server=false"
+          - "kaas/az=falkenstein-1c"
+          - "topology.kubernetes.io/zone=falkenstein-1c"
+          - "topology.kubernetes.io/region=falkenstein-1"
+
+    # compute nodes - hetzner bare metal
+    ####################################
+    compute1.host.fsn1.tantlinger.io:
+      # k3s ansible
+      ansible_host: 11.11.11.11
+      ansible_user: root
+      k3s_control_node: false
+      k3s_agent:
+        node-name: compute1.host.fsn1.tantlinger.io
+        node-ip: 11.11.11.11
+        node-label:
+          - "kaas/group=compute"
+          - "instance.hetzner.cloud/is-root-server=true"
+          - "kaas/az=falkenstein-1a"
+          - "topology.kubernetes.io/zone=falkenstein-1a"
+          - "topology.kubernetes.io/region=falkenstein-1"
+          - "node.longhorn.io/create-default-disk=true"
+      # base
+      ip: 11.11.11.11
+      int_ip_metallb: 11.11.11.11
+      ext_ip: 11.11.11.11
+      ext_gw: 11.11.11.11
+      ext_dev: enp4s0
+      eth_mac: a8:a1:59:0e:0e:b6
+    compute2.host.fsn1.tantlinger.io:
+      # k3s ansible
+      ansible_host: 11.11.11.11
+      ansible_user: root
+      k3s_control_node: false
+      k3s_agent:
+        node-name: compute2.host.fsn1.tantlinger.io
+        node-ip: 11.11.11.11
+        node-label:
+          - "kaas/group=compute"
+          - "instance.hetzner.cloud/is-root-server=true"
+          - "kaas/az=falkenstein-1b"
+          - "topology.kubernetes.io/zone=falkenstein-1b"
+          - "topology.kubernetes.io/region=falkenstein-1"
+          - "node.longhorn.io/create-default-disk=true"
+      # base
+      ip: 11.11.11.11
+      int_ip_metallb: 11.11.11.11
+      ext_ip: 11.11.11.11
+      ext_gw: 11.11.11.11
+      ext_dev: enp35s0
+      eth_mac: a8:a1:59:2c:bb:19
+    compute3.host.fsn1.tantlinger.io:
+      # k3s ansible
+      ansible_host: 11.11.11.11
+      ansible_user: root
+      k3s_control_node: false
+      k3s_agent:
+        node-name: compute3.host.fsn1.tantlinger.io
+        node-ip: 11.11.11.11
+        node-label:
+          - "kaas/group=compute"
+          - "instance.hetzner.cloud/is-root-server=true"
+          - "kaas/az=falkenstein-1c"
+          - "topology.kubernetes.io/zone=falkenstein-1c"
+          - "topology.kubernetes.io/region=falkenstein-1"
+          - "node.longhorn.io/create-default-disk=true"
+      # base
+      ip: 11.11.11.11
+      int_ip_metallb: 11.11.11.11
+      ext_ip: 11.11.11.11
+      ext_gw: 11.11.11.11
+      ext_dev: enp9s0
+      eth_mac: a8:a1:59:94:19:e5
+    compute4.host.fsn1.tantlinger.io:
+      # k3s ansible
+      ansible_host: 11.11.11.11
+      ansible_user: root
+      k3s_control_node: false
+      k3s_agent:
+        node-name: compute4.host.fsn1.tantlinger.io
+        node-ip: 11.11.11.11
+        node-label:
+          - "kaas/group=compute"
+          - "instance.hetzner.cloud/is-root-server=true"
+          - "kaas/az=falkenstein-1a"
+          - "topology.kubernetes.io/zone=falkenstein-1a"
+          - "topology.kubernetes.io/region=falkenstein-1"
+          - "node.longhorn.io/create-default-disk=true"
+      # base
+      ip: 11.11.11.11
+      int_ip_metallb: 11.11.11.11
+      ext_ip: 11.11.11.11
+      ext_gw: 11.11.11.11
+      ext_dev: enp9s0
+      eth_mac: a8:a1:59:93:34:e6
+    compute5.host.fsn1.tantlinger.io:
+      # k3s ansible
+      ansible_host: 11.11.11.11
+      ansible_user: root
+      k3s_control_node: false
+      k3s_agent:
+        node-name: compute5.host.fsn1.tantlinger.io
+        node-ip: 11.11.11.11
+        node-label:
+          - "kaas/group=compute"
+          - "instance.hetzner.cloud/is-root-server=true"
+          - "kaas/az=falkenstein-1b"
+          - "topology.kubernetes.io/zone=falkenstein-1b"
+          - "topology.kubernetes.io/region=falkenstein-1"
+          - "node.longhorn.io/create-default-disk=true"
+      # base
+      ip: 11.11.11.11
+      int_ip_metallb: 11.11.11.11
+      ext_ip: 11.11.11.11
+      ext_gw: 11.11.11.11
+      ext_dev: enp35s0
+      eth_mac: a8:a1:59:3b:17:80
+
+    # storage nodes - hetzner bare metal
+    ####################################
+    storage1.host.fsn1.tantlinger.io:
+      # k3s ansible
+      ansible_host: 11.11.11.11
+      ansible_user: root
+      k3s_control_node: false
+      k3s_agent:
+        node-name: storage1.host.fsn1.tantlinger.io
+        node-ip: 11.11.11.11
+        node-label:
+          - "kaas/group=storage"
+          - "instance.hetzner.cloud/is-root-server=true"
+          - "kaas/az=falkenstein-1a"
+          - "topology.kubernetes.io/zone=falkenstein-1a"
+          - "topology.kubernetes.io/region=falkenstein-1"
+          - "node.longhorn.io/create-default-disk=true"
+        node-taint:
+          - "kaas=storage:NoSchedule"
+      # base
+      ip: 11.11.11.11
+      ext_ip: 11.11.11.11
+      ext_gw: 11.11.11.11
+      ext_dev: enp34s0
+      eth_mac: 2c:f0:5d:0d:de:47
+    storage2.host.fsn1.tantlinger.io:
+      # k3s ansible
+      ansible_host: 11.11.11.11
+      ansible_user: root
+      k3s_control_node: false
+      k3s_agent:
+        node-name: storage2.host.fsn1.tantlinger.io
+        node-ip: 11.11.11.11
+        node-label:
+          - "kaas/group=storage"
+          - "instance.hetzner.cloud/is-root-server=true"
+          - "kaas/az=falkenstein-1b"
+          - "topology.kubernetes.io/zone=falkenstein-1b"
+          - "topology.kubernetes.io/region=falkenstein-1"
+          - "node.longhorn.io/create-default-disk=true"
+        node-taint:
+          - "kaas=storage:NoSchedule"
+      # base
+      ip: 11.11.11.11
+      ext_ip: 11.11.11.11
+      ext_gw: 11.11.11.11
+      ext_dev: enp35s0
+      eth_mac: a8:a1:59:48:f5:ac
+    storage3.host.fsn1.tantlinger.io:
+      # k3s ansible
+      ansible_host: 11.11.11.11
+      ansible_user: root
+      k3s_control_node: false
+      k3s_agent:
+        node-name: storage3.host.fsn1.tantlinger.io
+        node-ip: 11.11.11.11
+        node-label:
+          - "kaas/group=storage"
+          - "instance.hetzner.cloud/is-root-server=true"
+          - "kaas/az=falkenstein-1c"
+          - "topology.kubernetes.io/zone=falkenstein-1c"
+          - "topology.kubernetes.io/region=falkenstein-1"
+          - "node.longhorn.io/create-default-disk=true"
+        node-taint:
+          - "kaas=storage:NoSchedule"
+      # base
+      ip: 11.11.11.11
+      ext_ip: 11.11.11.11
+      ext_gw: 11.11.11.11
+      ext_dev: enp35s0
+      eth_mac: a8:a1:59:0f:32:c2
+
+
+  # Groups
+  ########
+  children:
+    hetzner_bare_metal:
+      hosts:
+        compute1.host.fsn1.tantlinger.io: {}
+        compute2.host.fsn1.tantlinger.io: {}
+        compute3.host.fsn1.tantlinger.io: {}
+        compute4.host.fsn1.tantlinger.io: {}
+        compute5.host.fsn1.tantlinger.io: {}
+        storage1.host.fsn1.tantlinger.io: {}
+        storage2.host.fsn1.tantlinger.io: {}
+        storage3.host.fsn1.tantlinger.io: {}
+    k3s_cluster:
+      hosts:
+        control1.host.fsn1.tantlinger.io: {}
+        control2.host.fsn1.tantlinger.io: {}
+        control3.host.fsn1.tantlinger.io: {}
+        compute1.host.fsn1.tantlinger.io: {}
+        compute2.host.fsn1.tantlinger.io: {}
+        compute3.host.fsn1.tantlinger.io: {}
+        compute4.host.fsn1.tantlinger.io: {}
+        compute5.host.fsn1.tantlinger.io: {}
+        storage1.host.fsn1.tantlinger.io: {}
+        storage2.host.fsn1.tantlinger.io: {}
+        storage3.host.fsn1.tantlinger.io: {}
+    k3s_cluster_compute:
+      hosts:
+        compute1.host.fsn1.tantlinger.io: {}
+        compute2.host.fsn1.tantlinger.io: {}
+        compute3.host.fsn1.tantlinger.io: {}
+        compute4.host.fsn1.tantlinger.io: {}
+        compute5.host.fsn1.tantlinger.io: {}
+    k3s_cluster_storage:
+      hosts:
+        storage1.host.fsn1.tantlinger.io: {}
+        storage2.host.fsn1.tantlinger.io: {}
+        storage3.host.fsn1.tantlinger.io: {}
+    k3s_cluster_master:
+      hosts:
+        control1.host.fsn1.tantlinger.io: {}
+    ungrouped: {}

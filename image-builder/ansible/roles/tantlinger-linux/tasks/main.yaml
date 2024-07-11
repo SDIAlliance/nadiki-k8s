@@ -1,0 +1,94 @@
+---
+
+# Install dependencies
+######################
+
+- name: Install dependencies
+  apt:
+    name:
+      - unzip
+
+# Add user
+##########
+- name: Add the tantlinger user
+  ansible.builtin.user:
+    name: tantlinger
+    shell: /bin/bash
+    groups: sudo
+    append: yes
+    password: "placeholder"
+
+# Add ssh keys
+##############
+- name: Set authorized for tantlinger user
+  ansible.posix.authorized_key:
+    user: tantlinger
+    state: present
+    key: https://github.com/maartenkamoen.keys
+    validate_certs: false
+
+# Install promtail
+##################
+- name: Install promtail
+  command: "{{ item }}"
+  with_items:
+    - curl -L https://github.com/grafana/loki/releases/download/v2.9.2/promtail-linux-amd64.zip -o promtail-linux-amd64.zip
+    - unzip promtail-linux-amd64.zip
+    - mv promtail-linux-amd64 /usr/local/bin
+
+- name: Configure rsyslog
+  template:
+    src: "./templates/rsyslog.conf"
+    dest: "/etc/rsyslog.conf"
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Configure promtail
+  template:
+    src: "./templates/promtail.yaml"
+    dest: "/etc/promtail.yaml"
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Configure promtail
+  template:
+    src: "./templates/promtail.service"
+    dest: "/etc/systemd/system/promtail.service"
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Enable and stop promtail
+  service:
+    name: promtail
+    enabled: yes
+    state: stopped
+
+# Allow incoming ssh for debugging
+##################################
+- name: Allow everything and enable UFW
+  community.general.ufw:
+    state: enabled
+    policy: allow
+
+- name: Set logging
+  community.general.ufw:
+    logging: 'on'
+
+- name: Allow all access to tcp port 22
+  community.general.ufw:
+    rule: allow
+    port: '22'
+    proto: tcp
+
+- name: ufw service enable and start
+  service:
+    name: ufw
+    enabled: yes
+    state: started
+
+- name: enable ufw
+  community.general.ufw:
+    state: enabled

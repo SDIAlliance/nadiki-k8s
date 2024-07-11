@@ -1,0 +1,221 @@
+---
+# export CRI_PATH="/run/k3s/containerd/containerd.sock"
+# export TEMPLATE=./cluster-template.yaml
+# export NODE_VM_IMAGE_TEMPLATE=control:15000/kubevirt/ubuntu-2004-container-disk:latest
+# export IMAGE_REPO=k8s.gcr.io
+# export NAMESPACE={{.Values.tenant}}
+# clusterctl generate cluster test --kubernetes-version v1.24.4 --control-plane-machine-count=1 --worker-machine-count=1 --target-namespace=$NAMESPACE --from $TEMPLATE > cluster-manifest.yaml
+
+# Cluster
+#########
+
+---
+apiVersion: cluster.x-k8s.io/v1beta1
+kind: Cluster
+metadata:
+  name: {{.Values.tenant}}
+  labels:
+    cni: {{.Values.cni}}
+    k8s_version: {{.Values.cluster.k8s_version}}
+spec:
+  clusterNetwork:
+    pods:
+      cidrBlocks:
+        - 172.16.0.0/12
+    services:
+      cidrBlocks:
+        - 10.95.0.0/16
+  controlPlaneRef:
+    apiVersion: controlplane.cluster.x-k8s.io/v1beta1
+    kind: KubeadmControlPlane
+    name: {{.Values.tenant}}-control-plane
+    namespace: tenant-{{.Values.tenant}}
+  infrastructureRef:
+    apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
+    kind: KubevirtCluster
+    name: {{.Values.tenant}}
+    namespace: tenant-{{.Values.tenant}}
+---
+apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
+kind: KubevirtCluster
+metadata:
+  name: {{.Values.tenant}}
+spec:
+  controlPlaneServiceTemplate:
+    spec:
+      type: LoadBalancer
+    # metadata:
+    #   annotations:
+    #     metallb.universe.tf/address-pool: pool0
+
+# Control Plane
+###############
+---
+# https://doc.crds.dev/github.com/kubernetes-sigs/cluster-api/controlplane.cluster.x-k8s.io/KubeadmControlPlane/v1beta1@v1.0.0
+apiVersion: controlplane.cluster.x-k8s.io/v1beta1
+kind: KubeadmControlPlane
+metadata:
+  name: {{.Values.tenant}}-control-plane
+  annotations:
+    helm.sh/resource-policy: keep
+spec:
+  version: {{.Values.cluster.k8s_version}}
+  kubeadmConfigSpec:
+    clusterConfiguration:
+      apiServer:
+        extraArgs:
+          service-node-port-range: 30000-30050  # https://kubernetes.io/docs/concepts/services-networking/network-policies/#targeting-a-range-of-ports
+      networking:
+        dnsDomain: cluster.local
+        podSubnet: 172.16.0.0/12
+        serviceSubnet: 10.95.0.0/16
+    initConfiguration:
+      nodeRegistration:
+        criSocket: unix:///var/run/containerd/containerd.sock
+    joinConfiguration:
+      nodeRegistration:
+        criSocket: unix:///var/run/containerd/containerd.sock
+    users:
+      - name: amaakam
+        sshAuthorizedKeys:
+          - 'ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEAw1Ho40Y9x0f14O8srHY76jxqeS5vfiYbxFs7Qz5hJeIuPSBk15W/fpaDu/4zWnU4WladxU58fn5sXjnUtgK1+eKpTFOqQCy6AMYu9H5/SZ3nszJdoARkj5a6BGO4vHrYwzc49MCc9L4XChRJkn5z4arLCyxPc4CqUc+fg6rEySN1hmI1h1NUqRI6sDatp6bTWuVbAZIcLw1VhmOJq92mMZL8nIPbX8d+XOWcF15aM2kSofgd3ZuTFaCF5JaxoiyvEJVUGxY0KZDJa55LUj6xms2n878JvNmp6zJXL5pdVtSSXf6JnK8XrY6VhA7uN+oni8OJxW0OMTQy99cNfHvblQ== maarten@macbook'
+        sudo: ALL=(ALL) NOPASSWD:ALL
+      - name: tantlinger
+        sshAuthorizedKeys:
+          - 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIElWOk/ILF7RyOMbBCpJL0op4Wvkdoyc7qOaxxsxYSIv amaakam@mk'
+        sudo: ALL=(ALL) NOPASSWD:ALL
+  machineTemplate:
+    infrastructureRef:
+      apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
+      kind: KubevirtMachineTemplate
+      name: {{.Values.tenant}}-control-plane-{{ regexReplaceAll "\\W+" .Values.cluster.k8s_version "-" }}
+      namespace: tenant-{{.Values.tenant}}
+  replicas: {{.Values.cluster.controlplane.count}}
+
+# Worker Nodes
+###############
+---
+apiVersion: bootstrap.cluster.x-k8s.io/v1beta1
+kind: KubeadmConfigTemplate
+metadata:
+  name: {{$.Values.tenant}}-workers
+  annotations:
+    helm.sh/resource-policy: keep
+spec:
+  template:
+    spec:
+      format: cloud-config
+      joinConfiguration:
+        discovery: {}
+      users:
+        - name: amaakam
+          sshAuthorizedKeys:
+            - 'ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEAw1Ho40Y9x0f14O8srHY76jxqeS5vfiYbxFs7Qz5hJeIuPSBk15W/fpaDu/4zWnU4WladxU58fn5sXjnUtgK1+eKpTFOqQCy6AMYu9H5/SZ3nszJdoARkj5a6BGO4vHrYwzc49MCc9L4XChRJkn5z4arLCyxPc4CqUc+fg6rEySN1hmI1h1NUqRI6sDatp6bTWuVbAZIcLw1VhmOJq92mMZL8nIPbX8d+XOWcF15aM2kSofgd3ZuTFaCF5JaxoiyvEJVUGxY0KZDJa55LUj6xms2n878JvNmp6zJXL5pdVtSSXf6JnK8XrY6VhA7uN+oni8OJxW0OMTQy99cNfHvblQ== maarten@macbook'
+          sudo: ALL=(ALL) NOPASSWD:ALL
+        - name: jasper
+          sshAuthorizedKeys:
+            - 'ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCw7l8UqqiA0MiXjIgA/yu70HDr1gyr81bmnz+VLBZXRF9+VzLxxxlaaAskRfiGyzA+jZrYk6JKW9s+KtA8WmymGe49KHdGqXpaJP6HoOwHZoHw7A/MU64Z9CrVP9m4D/3FDTxv4JoOKmAYGaLwi7kRRNRAJnd7uw+RHQ29NHBzU4/Yxo2LzphrTnXf3N+WCMhL2Av0gNkW50g3SDwzwYOTOJVNHPAhnRZGwiTzERjdHeBMTANEhDLH7uweQf69FVR/5usTsxApvusdrQw1y+INYEC7LCiCuU3kKAaz7Bz3Xk6Cv9Unrzy2SJvAVIn6fxhSYn/OD92TjLBlqljF37HJ jasper@hp'
+          sudo: ALL=(ALL) NOPASSWD:ALL
+---
+apiVersion: cluster.x-k8s.io/v1beta1
+kind: MachineDeployment
+metadata:
+  name: {{$.Values.tenant}}-workers
+  annotations:
+    cluster.x-k8s.io/cluster-api-autoscaler-node-group-min-size: "{{$.Values.cluster.workers.min_count}}"
+    cluster.x-k8s.io/cluster-api-autoscaler-node-group-max-size: "{{$.Values.cluster.workers.max_count}}"
+    helm.sh/resource-policy: keep
+spec:
+  clusterName: {{$.Values.tenant}}
+  selector:
+    matchLabels: null
+  template:
+    spec:
+      bootstrap:
+        configRef:
+          apiVersion: bootstrap.cluster.x-k8s.io/v1beta1
+          kind: KubeadmConfigTemplate
+          name: {{$.Values.tenant}}-workers
+          namespace: tenant-{{$.Values.tenant}}
+      clusterName: {{$.Values.tenant}}
+      # failureDomain: "kaas/az=falkenstein-1a"  # Not supported yet
+      infrastructureRef:
+        apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
+        kind: KubevirtMachineTemplate
+        name: {{$.Values.tenant}}-workers-{{ regexReplaceAll "\\W+" $.Values.cluster.k8s_version "-" }}
+        namespace: tenant-{{$.Values.tenant}}
+      version: {{$.Values.cluster.k8s_version}}
+---
+apiVersion: cluster.x-k8s.io/v1beta1
+kind: MachineHealthCheck
+metadata:
+  name: {{$.Values.tenant}}-workers-unhealthy-5m
+  annotations:
+    helm.sh/resource-policy: keep
+spec:
+  clusterName: {{$.Values.tenant}}
+  maxUnhealthy: 100%
+  selector:
+    matchLabels:
+      cluster.x-k8s.io/deployment-name: {{$.Values.tenant}}-workers
+  unhealthyConditions:
+    - type: Ready
+      status: Unknown
+      timeout: 5m0s
+    - type: Ready
+      status: "False"
+      timeout: 5m0s
+
+# Worker Nodes - Windows
+########################
+---
+apiVersion: bootstrap.cluster.x-k8s.io/v1beta1
+kind: KubeadmConfigTemplate
+metadata:
+  name: {{$.Values.tenant}}-workers-windows
+  annotations:
+    helm.sh/resource-policy: keep
+spec:
+  template:
+    spec:
+      joinConfiguration:
+        discovery: {}
+      users:
+        - name: amaakam
+          sshAuthorizedKeys:
+            - 'ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEAw1Ho40Y9x0f14O8srHY76jxqeS5vfiYbxFs7Qz5hJeIuPSBk15W/fpaDu/4zWnU4WladxU58fn5sXjnUtgK1+eKpTFOqQCy6AMYu9H5/SZ3nszJdoARkj5a6BGO4vHrYwzc49MCc9L4XChRJkn5z4arLCyxPc4CqUc+fg6rEySN1hmI1h1NUqRI6sDatp6bTWuVbAZIcLw1VhmOJq92mMZL8nIPbX8d+XOWcF15aM2kSofgd3ZuTFaCF5JaxoiyvEJVUGxY0KZDJa55LUj6xms2n878JvNmp6zJXL5pdVtSSXf6JnK8XrY6VhA7uN+oni8OJxW0OMTQy99cNfHvblQ== maarten@macbook'
+          groups: Administrators
+        - name: jasper
+          sshAuthorizedKeys:
+            - 'ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCw7l8UqqiA0MiXjIgA/yu70HDr1gyr81bmnz+VLBZXRF9+VzLxxxlaaAskRfiGyzA+jZrYk6JKW9s+KtA8WmymGe49KHdGqXpaJP6HoOwHZoHw7A/MU64Z9CrVP9m4D/3FDTxv4JoOKmAYGaLwi7kRRNRAJnd7uw+RHQ29NHBzU4/Yxo2LzphrTnXf3N+WCMhL2Av0gNkW50g3SDwzwYOTOJVNHPAhnRZGwiTzERjdHeBMTANEhDLH7uweQf69FVR/5usTsxApvusdrQw1y+INYEC7LCiCuU3kKAaz7Bz3Xk6Cv9Unrzy2SJvAVIn6fxhSYn/OD92TjLBlqljF37HJ jasper@hp'
+          groups: Administrators
+      format: cloud-config
+---
+apiVersion: cluster.x-k8s.io/v1beta1
+kind: MachineDeployment
+metadata:
+  name: {{$.Values.tenant}}-workers-windows
+  annotations:
+    cluster.x-k8s.io/cluster-api-autoscaler-node-group-min-size: "{{$.Values.cluster.workers.min_count}}"
+    cluster.x-k8s.io/cluster-api-autoscaler-node-group-max-size: "{{$.Values.cluster.workers.max_count}}"
+    helm.sh/resource-policy: keep
+spec:
+  clusterName: {{$.Values.tenant}}
+  selector:
+    matchLabels: null
+  template:
+    spec:
+      bootstrap:
+        configRef:
+          apiVersion: bootstrap.cluster.x-k8s.io/v1beta1
+          kind: KubeadmConfigTemplate
+          name: {{$.Values.tenant}}-workers-windows
+          namespace: tenant-{{$.Values.tenant}}
+      clusterName: {{$.Values.tenant}}
+      # failureDomain: "kaas/az=falkenstein-1a"  # Not supported yet
+      infrastructureRef:
+        apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
+        kind: KubevirtMachineTemplate
+        name: {{$.Values.tenant}}-workers-windows-{{ regexReplaceAll "\\W+" $.Values.cluster.k8s_version "-" }}
+        namespace: tenant-{{$.Values.tenant}}
+      version: {{$.Values.cluster.k8s_version}}

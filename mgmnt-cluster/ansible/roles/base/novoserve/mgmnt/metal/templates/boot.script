@@ -1,0 +1,4 @@
+#!ipxe
+kernel http://10.20.0.10/vmlinuz-amd64 initrd=initramfs-amd64.xz console=tty0 console=ttyS1,115200 selinux=0 biosdevname=0 init_on_alloc=1 slab_nomerge pti=on printk.devkmsg=on talos.platform=metal ip=dhcp talos.config=http://10.20.0.10/config/config-${mac}.yaml
+initrd http://10.20.0.10/initramfs-amd64.xz
+boot

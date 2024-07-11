@@ -1,0 +1,228 @@
+---
+########################################################################################
+# ALL NODES
+########################################################################################
+
+# Install generic dependencies
+################################################################################
+# - name: Force upgrade
+#   ansible.builtin.file:
+#     path: /root/apt_update_done
+#     state: absent
+
+- name: Upgrade packages
+  shell:
+    apt-get update -y && DEBIAN_FRONTEND=noninteractive apt-get upgrade -y && apt install -y --install-recommends linux-generic-hwe-20.04 && touch /root/apt_update_done
+  args:
+    creates: /root/apt_update_done
+  register: apt_update_reboot
+
+- name: Wait for server to restart
+  reboot:
+    reboot_timeout: 3600
+  when: apt_update_reboot.changed
+
+- name: Install dependencies
+  apt:
+    name:
+      - dirmngr
+
+# Configure multipath
+# https://longhorn.io/kb/troubleshooting-volume-with-multipath/
+#####################
+- name: Configure multipath
+  template:
+    src: ./templates/multipath.conf
+    dest: /etc/multipath.conf
+    owner: root
+    group: root
+    mode: '0644'
+
+# Configure network
+################################################################################
+- name: Set hostname
+  ansible.builtin.hostname:
+    name: "{{inventory_hostname}}"
+
+- name: Configure hosts
+  template:
+    src: "./templates/hosts"
+    dest: /etc/hosts
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Load br_netfilter module
+  community.general.modprobe:
+    name: br_netfilter
+    state: present
+    persistent: present
+
+# - name: Persist br_netfilter module
+#   ansible.builtin.copy:
+#     src: ./templates/modules
+#     dest: /etc/modules
+#     owner: root
+#     group: root
+#     mode: '0644'
+
+- name: Disable IPv6 with sysctl & enable IP forwarding
+  sysctl: name={{ item }} value=1 state=present reload=yes
+  with_items:
+    # - net.ipv6.conf.all.disable_ipv6
+    # - net.ipv6.conf.default.disable_ipv6
+    # - net.ipv6.conf.lo.disable_ipv6
+    # https://bugs.launchpad.net/microstack/+bug/1812415
+    - net.ipv4.ip_forward
+    - net.bridge.bridge-nf-call-iptables
+    - net.bridge.bridge-nf-call-ip6tables
+
+- name: Configure network interface
+  template:
+    src: "./templates/netplan.yaml"
+    dest: "/etc/netplan/01-netcfg.yaml"
+    owner: root
+    group: root
+    mode: '0644'
+  register: networkconfig
+
+- name: Apply with netplan
+  shell: /lib/netplan/generate
+  when: networkconfig.changed
+
+- name: Wait for server to restart
+  reboot:
+    reboot_timeout: 3600
+  when: networkconfig.changed
+
+# Increase limits
+#################
+- name: Add or modify hard nofile limits for wildcard domain
+  community.general.pam_limits:
+    domain: '*'
+    limit_type: hard
+    limit_item: nofile
+    value: unlimited
+
+- name: Add or modify soft nofile limits for wildcard domain
+  community.general.pam_limits:
+    domain: '*'
+    limit_type: soft
+    limit_item: nofile
+    value: unlimited
+
+- ansible.posix.sysctl:
+    name: fs.inotify.max_user_instances
+    value: '1280'
+    state: present
+
+- ansible.posix.sysctl:
+    name: fs.inotify.max_user_watches
+    value: '5003030'
+    state: present
+
+# Install dependencies
+######################
+- name: Install dependencies
+  apt:
+    name:
+      - mlocate
+      - apt-transport-https
+      - ca-certificates
+      - curl
+      - gnupg-agent
+      - software-properties-common
+      - net-tools
+      - build-essential
+      - dkms
+      # - linux-headers-5.4.0-150-generic   # Ubuntu 20 LTS
+      - linux-headers-5.15.0-89-generic  # Ubuntu 20 LTS HWE
+      # - linux-headers-5.15.0-25-generic  # Ubuntu 22 LTS
+      - python3-pip
+      - telnet
+      - snapd
+      - git
+      - libvirt-clients
+      - unzip
+      # - openvswitch-common
+      # - openvswitch-switch
+      - socat
+      - ebtables
+      - ethtool
+      - conntrack
+      - open-iscsi
+    state: present
+
+# Load Kernel Module for power measurements
+- name: Add the intel_rapl_common module
+  community.general.modprobe:
+    name: intel_rapl_common
+    state: present
+
+# Create users for github actions runner
+# ######################################
+- name: Add the github actions system group
+  ansible.builtin.group:
+    name: actions
+    state: present
+
+- name: Add the github actions system user
+  ansible.builtin.user:
+    name: actions
+    comment: actions
+    group: actions
+    shell: /bin/bash
+
+# Prepare for Longhorn
+######################
+
+# https://longhorn.io/docs/1.6.1/v2-data-engine/quick-start/#configure-kernel-modules-and-huge-pages
+- name: Install Longhorn dependencies
+  apt:
+    name:
+      - nfs-common
+
+- name: Load uio module
+  community.general.modprobe:
+    name: uio
+    state: present
+    persistent: present
+
+- name: Load uio_pci_generic module
+  community.general.modprobe:
+    name: uio_pci_generic
+    state: present
+    persistent: present
+
+- name: Enable huge pages
+  sysctl:
+    name: vm.nr_hugepages
+    value: 1024
+
+- name: Load nvme-tcp module
+  community.general.modprobe:
+    name: nvme-tcp
+    state: present
+    persistent: present
+
+# - name: Create longhorn dir
+#   ansible.builtin.file:
+#     path: /opt/longhorn
+#     state: directory
+#     mode: '0755'
+#   when: inventory_hostname in groups["k3s_cluster_storage"]
+
+# - name: Create a ext4 filesystem on /dev/sda
+#   community.general.filesystem:
+#     fstype: ext4
+#     dev: /dev/sda
+#     state: present
+#   when: inventory_hostname in groups["k3s_cluster_storage"]
+
+# - name: Mount volume
+#   ansible.posix.mount:
+#     path: /opt/longhorn
+#     src: /dev/sda
+#     fstype: ext4
+#     state: mounted
+#   when: inventory_hostname in groups["k3s_cluster_storage"]

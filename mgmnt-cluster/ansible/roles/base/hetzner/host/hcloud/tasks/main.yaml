@@ -1,0 +1,56 @@
+---
+########################################################################################
+# ALL NODES
+########################################################################################
+
+# Install generic dependencies
+################################################################################
+- name: Upgrade packages
+  shell:
+    apt-get update -y && DEBIAN_FRONTEND=noninteractive apt-get upgrade -y && apt install -y --install-recommends linux-generic-hwe-20.04 && touch /root/apt_update_done
+  args:
+    creates: /root/apt_update_done
+  register: apt_update_reboot
+
+- name: Wait for server to restart
+  reboot:
+    reboot_timeout: 3600
+  when: apt_update_reboot.changed
+
+- name: Install dependencies
+  apt:
+    name:
+      - dirmngr
+      - linux-headers-5.15.0-89-generic  # Ubuntu 20 LTS HWE
+
+# Prepare for Longhorn
+######################
+
+# https://longhorn.io/docs/1.6.1/v2-data-engine/quick-start/#configure-kernel-modules-and-huge-pages
+- name: Install Longhorn dependencies
+  apt:
+    name:
+      - nfs-common
+
+- name: Load uio module
+  community.general.modprobe:
+    name: uio
+    state: present
+    persistent: present
+
+- name: Load uio_pci_generic module
+  community.general.modprobe:
+    name: uio_pci_generic
+    state: present
+    persistent: present
+
+- name: Enable huge pages
+  sysctl:
+    name: vm.nr_hugepages
+    value: 1024
+
+- name: Load nvme-tcp module
+  community.general.modprobe:
+    name: nvme-tcp
+    state: present
+    persistent: present

@@ -1,0 +1,140 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: kube-vip
+  namespace: argocd
+spec:
+  generators:
+    - clusters:
+        selector:
+          matchLabels:
+            clusterType: "host"
+  template:
+    metadata:
+      name: '{{name}}--kube-vip'
+    spec:
+      project: default
+      source:
+        chart: kube-vip
+        repoURL: https://kube-vip.github.io/helm-charts
+        targetRevision: v0.4.4
+        helm:
+          releaseName: kube-vip
+          values: |
+            image:
+              tag: v0.7.0
+            env:
+              vip_interface: "eth0.4001"
+              vip_arp: "true"
+              lb_enable: "false"
+              vip_cidr: "32"
+              cp_enable: "false"
+              svc_enable: "true"
+              vip_leaderelection: "true"
+              lb_fwdmethod: "tunnel"
+            affinity:
+              nodeAffinity:
+                  requiredDuringSchedulingIgnoredDuringExecution:
+                    nodeSelectorTerms:
+                      - matchExpressions:
+                          - key: 'kaas/group'
+                            operator: In
+                            values:
+                              - 'compute'
+      destination:
+        server: '{{server}}'
+        namespace: kube-system
+      syncPolicy:
+        automated:
+          prune: true
+          allowEmpty: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true
+---
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: kube-vip-cloud-provider
+  namespace: argocd
+spec:
+  generators:
+    - clusters:
+        selector:
+          matchLabels:
+            clusterType: "host"
+  template:
+    metadata:
+      name: '{{name}}--kube-vip-cloud-provider'
+    spec:
+      project: default
+      source:
+        chart: kube-vip-cloud-provider
+        repoURL: https://kube-vip.github.io/helm-charts
+        targetRevision: v0.2.2
+        helm:
+          releaseName: kube-vip-cloud-provider
+          values: |
+            image:
+              tag: v0.0.9
+            replicasCount: 1
+            resources:
+              requests:
+                cpu: 50m
+                memory: 64Mi
+              limits:
+                cpu: 100m
+                memory: 128Mi
+      destination:
+        server: '{{server}}'
+        namespace: kube-system
+      syncPolicy:
+        automated:
+          prune: true
+          allowEmpty: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true
+---
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: kube-vip-configmap
+  namespace: argocd
+spec:
+  generators:
+    - matrix:
+        generators:
+          - clusters:
+              selector:
+                matchLabels:
+                  provider: "hetzner"
+          - clusters:
+              selector:
+                matchLabels:
+                  clusterType: "host"
+              values:
+                addresspool: 11.11.11.11-11.11.11.11
+  template:
+    metadata:
+      name: '{{name}}--kube-vip-configmap'
+    spec:
+      project: default
+      source:
+        repoURL: https://github.com/tantlinger/mgmnt-cluster-argocd-base
+        targetRevision: HEAD
+        path: add-ons/kube-vip-configmap
+        helm:
+          values: |
+            addresspool: "{{values.addresspool}}"
+      destination:
+        server: '{{server}}'
+        namespace: kube-system
+      syncPolicy:
+        automated:
+          prune: true
+          allowEmpty: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true

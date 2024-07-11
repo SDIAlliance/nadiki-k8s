@@ -1,0 +1,81 @@
+---
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: copy-hetzner-tenant-token
+  annotations:
+    policies.kyverno.io/title: Copy Secret containing the Hetzner tenant token to all tenant cluster namespaces
+spec:
+  rules:
+    - name: copy-hetzner-tenant-token
+      skipBackgroundRequests: true
+      match:
+        any:
+          - resources:
+              names:
+                - "tenant-*"
+              kinds:
+                - Namespace
+      generate:
+        apiVersion: v1
+        kind: Secret
+        name: hcloud-tenants
+        namespace: "{{request.object.metadata.name}}"
+        synchronize: false
+        clone:
+          namespace: cluster-api-hetzner
+          name: hcloud-tenants
+---
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: copy-hetzner-host-token
+  annotations:
+    policies.kyverno.io/title: Copy Secret containing the Hetzner host token to all host cluster namespaces
+spec:
+  rules:
+    - name: copy-hetzner-host-token
+      skipBackgroundRequests: true
+      match:
+        any:
+          - resources:
+              names:
+                - "host-*"
+              kinds:
+                - Namespace
+      generate:
+        apiVersion: v1
+        kind: Secret
+        name: hcloud-host
+        namespace: "{{request.object.metadata.name}}"
+        synchronize: false
+        clone:
+          namespace: cluster-api-hetzner
+          name: hcloud-host
+---
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: copy-hetzner-robot-ssh
+  annotations:
+    policies.kyverno.io/title: Copy Secret containing the Hetzner robot-ssh key to all host cluster namespaces
+spec:
+  rules:
+    - name: copy-hetzner-robot-ssh
+      skipBackgroundRequests: true
+      match:
+        any:
+          - resources:
+              names:
+                - "host-*"
+              kinds:
+                - Namespace
+      generate:
+        apiVersion: v1
+        kind: Secret
+        name: robot-ssh
+        namespace: "{{request.object.metadata.name}}"
+        synchronize: true
+        clone:
+          namespace: cluster-api-hetzner
+          name: robot-ssh

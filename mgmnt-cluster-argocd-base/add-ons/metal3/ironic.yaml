@@ -1,0 +1,371 @@
+---
+apiVersion: v1
+data:
+  CACHEURL: http://10.20.0.10:6180
+  HTTP_PORT: "6180"
+  IRONIC_EXTERNAL_CALLBACK_URL: https://10.20.0.10:6385
+  IRONIC_EXTERNAL_IP: 11.11.11.11
+  IRONIC_INSPECTOR_CALLBACK_ENDPOINT_OVERRIDE: https://10.20.0.10:5050
+  IRONIC_KERNEL_PARAMS: console=ttyS0
+  PROVISIONING_INTERFACE: ens10f1
+kind: ConfigMap
+metadata:
+  name: ironic-bmo-configmap-6t8c7m8f5k
+  namespace: bmo-system
+---
+apiVersion: v1
+data:
+  auth-config: |
+    W2lyb25pY10KYXV0aF90eXBlPWh0dHBfYmFzaWMKdXNlcm5hbWU9aXJvbmljCnBhc3N3b3
+    JkPTQ5ajQxOTJ5NGNmeTEyZjQ5eTJmeTJmaDIxZjJnZGtwZWpncDN1dDRw
+kind: Secret
+metadata:
+  name: ironic-auth-config-f9g642h4t4
+  namespace: bmo-system
+type: Opaque
+---
+apiVersion: v1
+data:
+  IRONIC_HTPASSWD: |
+    Imlyb25pYzokMnkkMDUkLzZWZ1F2Y053YUt5cDlxYXhBNjZELnhDU1RNd204emlENEYvVU
+    5tUnRjbnJUSVVLWmFVNjIi
+kind: Secret
+metadata:
+  name: ironic-htpasswd-mg84gf9gf4
+  namespace: bmo-system
+type: Opaque
+---
+apiVersion: v1
+data:
+  auth-config: |
+    W2luc3BlY3Rvcl0KYXV0aF90eXBlPWh0dHBfYmFzaWMKdXNlcm5hbWU9aW5zcGVjdG9yCn
+    Bhc3N3b3JkPTQ5ajQxOTJ5NGNmeTEyZjQ5eTJmeTJmaDIxZjJnZGtwZWpncDN1dDRw
+kind: Secret
+metadata:
+  name: ironic-inspector-auth-config-hh4htt9456
+  namespace: bmo-system
+type: Opaque
+---
+apiVersion: v1
+data:
+  INSPECTOR_HTPASSWD: |
+    Imluc3BlY3RvcjokMnkkMDUkSjhKTVRRRWVjWFFJV3gxMERsT083ZXNCb1h4UlV5SHJBeT
+    QxTnB6MVkuSUtYVUhHVzViS3ki
+kind: Secret
+metadata:
+  name: ironic-inspector-htpasswd-528db7gfbh
+  namespace: bmo-system
+type: Opaque
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ironic
+  namespace: bmo-system
+spec:
+  minReadySeconds: 10
+  replicas: 1
+  selector:
+    matchLabels:
+      name: ironic
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        name: ironic
+    spec:
+      containers:
+      - command:
+        - /bin/runironic
+        env:
+        - name: IRONIC_REVERSE_PROXY_SETUP
+          value: "true"
+        - name: INSPECTOR_REVERSE_PROXY_SETUP
+          value: "true"
+        envFrom:
+        - secretRef:
+            name: ironic-htpasswd-mg84gf9gf4
+        - configMapRef:
+            name: ironic-bmo-configmap-6t8c7m8f5k
+        image: quay.io/metal3-io/ironic:release-24.0
+        imagePullPolicy: Always
+        livenessProbe:
+          exec:
+            command:
+            - sh
+            - -c
+            - curl -sSf http://127.0.0.1:6388
+          failureThreshold: 10
+          initialDelaySeconds: 30
+          periodSeconds: 30
+          successThreshold: 1
+          timeoutSeconds: 10
+        name: ironic
+        readinessProbe:
+          exec:
+            command:
+            - sh
+            - -c
+            - curl -sSf http://127.0.0.1:6388
+          failureThreshold: 10
+          initialDelaySeconds: 30
+          periodSeconds: 30
+          successThreshold: 1
+          timeoutSeconds: 10
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          privileged: false
+          runAsGroup: 994
+          runAsUser: 997
+        volumeMounts:
+        - mountPath: /certs/ca/ironic
+          name: cert-ironic-ca
+          readOnly: true
+        - mountPath: /certs/ca/ironic-inspector
+          name: cert-ironic-inspector-ca
+          readOnly: true
+        - mountPath: /auth/ironic-inspector
+          name: ironic-inspector-auth-config
+          readOnly: true
+        - mountPath: /shared
+          name: ironic-data-volume
+      - command:
+        - /bin/runhttpd
+        env:
+        - name: IRONIC_REVERSE_PROXY_SETUP
+          value: "true"
+        - name: INSPECTOR_REVERSE_PROXY_SETUP
+          value: "true"
+        envFrom:
+        - configMapRef:
+            name: ironic-bmo-configmap-6t8c7m8f5k
+        image: quay.io/metal3-io/ironic:release-24.0
+        imagePullPolicy: Always
+        livenessProbe:
+          exec:
+            command:
+            - sh
+            - -c
+            - curl -sSfk https://127.0.0.1:6385
+          failureThreshold: 10
+          initialDelaySeconds: 30
+          periodSeconds: 30
+          successThreshold: 1
+          timeoutSeconds: 10
+        name: ironic-httpd
+        readinessProbe:
+          exec:
+            command:
+            - sh
+            - -c
+            - curl -sSfk https://127.0.0.1:6385
+          failureThreshold: 10
+          initialDelaySeconds: 30
+          periodSeconds: 30
+          successThreshold: 1
+          timeoutSeconds: 10
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          privileged: false
+          runAsGroup: 994
+          runAsUser: 997
+        volumeMounts:
+        - mountPath: /certs/ironic
+          name: cert-ironic
+          readOnly: true
+        - mountPath: /certs/ironic-inspector
+          name: cert-ironic-inspector
+          readOnly: true
+        - mountPath: /certs/ca/ironic
+          name: cert-ironic-ca
+          readOnly: true
+        - mountPath: /certs/ca/ironic-inspector
+          name: cert-ironic-inspector-ca
+          readOnly: true
+        - mountPath: /shared
+          name: ironic-data-volume
+      - command:
+        - /bin/runironic-inspector
+        env:
+        - name: IRONIC_REVERSE_PROXY_SETUP
+          value: "true"
+        - name: INSPECTOR_REVERSE_PROXY_SETUP
+          value: "true"
+        envFrom:
+        - secretRef:
+            name: ironic-inspector-htpasswd-528db7gfbh
+        - configMapRef:
+            name: ironic-bmo-configmap-6t8c7m8f5k
+        image: quay.io/metal3-io/ironic:release-24.0
+        imagePullPolicy: Always
+        livenessProbe:
+          exec:
+            command:
+            - sh
+            - -c
+            - curl -sSf http://127.0.0.1:5049
+          failureThreshold: 10
+          initialDelaySeconds: 30
+          periodSeconds: 30
+          successThreshold: 1
+          timeoutSeconds: 10
+        name: ironic-inspector
+        readinessProbe:
+          exec:
+            command:
+            - sh
+            - -c
+            - curl -sSf http://127.0.0.1:5049
+          failureThreshold: 10
+          initialDelaySeconds: 30
+          periodSeconds: 30
+          successThreshold: 1
+          timeoutSeconds: 10
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          privileged: false
+          runAsGroup: 993
+          runAsUser: 996
+        volumeMounts:
+        - mountPath: /certs/ca/ironic
+          name: cert-ironic-ca
+          readOnly: true
+        - mountPath: /certs/ca/ironic-inspector
+          name: cert-ironic-inspector-ca
+          readOnly: true
+        - mountPath: /auth/ironic
+          name: ironic-auth-config
+          readOnly: true
+      - command:
+        - /bin/runlogwatch.sh
+        image: quay.io/metal3-io/ironic:release-24.0
+        imagePullPolicy: Always
+        name: ironic-log-watch
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          privileged: false
+          runAsGroup: 994
+          runAsUser: 997
+        volumeMounts:
+        - mountPath: /shared
+          name: ironic-data-volume
+      hostNetwork: true
+      initContainers:
+      - command:
+        - /usr/local/bin/get-resource.sh
+        envFrom:
+        - configMapRef:
+            name: ironic-bmo-configmap-6t8c7m8f5k
+        image: quay.io/metal3-io/ironic-ipa-downloader
+        imagePullPolicy: Always
+        name: ironic-ipa-downloader
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          privileged: false
+          runAsGroup: 994
+          runAsUser: 997
+        volumeMounts:
+        - mountPath: /shared
+          name: ironic-data-volume
+      securityContext:
+        fsGroup: 994
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      volumes:
+      - name: cert-ironic-ca
+        secret:
+          secretName: ironic-cacert
+      - name: cert-ironic-inspector-ca
+        secret:
+          secretName: ironic-cacert
+      - name: cert-ironic
+        secret:
+          secretName: ironic-cert
+      - name: cert-ironic-inspector
+        secret:
+          secretName: ironic-inspector-cert
+      - name: ironic-auth-config
+        secret:
+          secretName: ironic-auth-config-f9g642h4t4
+      - name: ironic-inspector-auth-config
+        secret:
+          secretName: ironic-inspector-auth-config-hh4htt9456
+      - emptyDir: {}
+        name: ironic-data-volume
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: ironic-cacert
+  namespace: bmo-system
+spec:
+  commonName: ironic-ca
+  isCA: true
+  issuerRef:
+    kind: Issuer
+    name: selfsigned-issuer
+  secretName: ironic-cacert
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: ironic-cert
+  namespace: bmo-system
+spec:
+  commonName: ironic-cert
+  ipAddresses:
+  - 11.11.11.11
+  - 11.11.11.11
+  issuerRef:
+    kind: Issuer
+    name: ca-issuer
+  secretName: ironic-cert
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: ironic-inspector-cert
+  namespace: bmo-system
+spec:
+  commonName: ironic-inspector-cert
+  ipAddresses:
+  - 11.11.11.11
+  - 11.11.11.11
+  issuerRef:
+    kind: Issuer
+    name: ca-issuer
+  secretName: ironic-inspector-cert
+---
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: ca-issuer
+  namespace: bmo-system
+spec:
+  ca:
+    secretName: ironic-cacert
+---
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: selfsigned-issuer
+  namespace: bmo-system
+spec:
+  selfSigned: {}

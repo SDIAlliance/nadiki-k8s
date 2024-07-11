@@ -1,0 +1,89 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: kubevirt-csi-host
+spec:
+  generators:
+    - matrix:
+        generators:
+          - git:
+              repoURL: https://github.com/tantlinger/mgmnt-cluster-argocd-tenants
+              revision: HEAD
+              files:
+                - path: "tenants/kubevirt/**/config.yaml"
+          - clusters:
+              selector:
+                matchLabels:
+                  clusterType: "host"
+    - matrix:
+        generators:
+          - git:
+              repoURL: https://github.com/tantlinger/mgmnt-cluster-argocd-tenants
+              revision: HEAD
+              files:
+                - path: "tenants/kamaji-kubevirt/**/config.yaml"
+          - clusters:
+              selector:
+                matchLabels:
+                  clusterType: "host"
+  template:
+    metadata:
+      name: 'tenant-{{tenant}}-kubevirt-csi-host'
+    spec:
+      project: default
+      syncPolicy:
+        automated:
+          prune: true
+          allowEmpty: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true
+      source:
+        repoURL: https://github.com/tantlinger/mgmnt-cluster-argocd-base
+        targetRevision: HEAD
+        path: "add-ons/kubevirt-csi/host"
+        helm:
+          releaseName: kubevirt-csi-host
+          values: |
+            tenant: "{{tenant}}"
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: 'tenant-{{tenant}}'
+---
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: kubevirt-csi-tenant
+  namespace: argocd
+spec:
+  generators:
+    - clusters:
+        selector:
+          matchLabels:
+            clusterType: "tenant"
+  template:
+    metadata:
+      name: '{{name}}--kubevirt-csi-tenant'
+    spec:
+      project: default
+      source:
+        repoURL: https://github.com/tantlinger/mgmnt-cluster-argocd-base
+        targetRevision: main
+        path: add-ons/kubevirt-csi/tenant
+        helm:
+          releaseName: kubevirt-csi-host
+          values: |
+            tenant: "{{name}}"
+      destination:
+        server: '{{server}}'
+        namespace: kubevirt-csi-driver
+      syncPolicy:
+        automated:
+          prune: true
+          allowEmpty: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true
+          - ServerSideApply=true
+          - ApplyOutOfSyncOnly=true

@@ -1,0 +1,48 @@
+---
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: delete-secret-on-trigger
+spec:
+  validationFailureAction: Enforce
+  schemaValidation: false
+  rules:
+    - name: delete-namespace
+      match:
+        any:
+          - resources:
+              kinds:
+                - Cluster
+              namespaces:
+                - "tenant-*"
+      preconditions:
+        any:
+          - key: "{{ request.operation }}"
+            operator: Equals
+            value: DELETE
+      mutate:
+        targets:
+          - kind: Secret
+            name: "{{ request.namespace }}"
+            namespace: argocd
+        patchStrategicMerge:
+          metadata:
+            labels:
+              cleanup-tenant: "true"
+---
+apiVersion: kyverno.io/v2alpha1
+kind: ClusterCleanupPolicy
+metadata:
+  name: cleandeploy
+spec:
+  match:
+    any:
+      - resources:
+          kinds:
+            - Namespace
+            - Secret
+            - Configmaps
+          selector:
+            matchLabels:
+              cleanup-tenant: "true"
+  schedule: "*/1 * * * *"

@@ -1,0 +1,22 @@
+---
+name: Setup ssh
+description: 'Creates ssh credentials'
+
+inputs:
+  HETZNER_SSH_KEY:
+    required: true
+  HETZNER_SSH_KEY_PUB:
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Setup SSH
+      shell: bash
+      run: |
+        eval `ssh-agent -s`
+        mkdir -p /home/runner/.ssh/
+        touch /home/runner/.ssh/id_rsa
+        echo -e "${{inputs.HETZNER_SSH_KEY}}" > /home/runner/.ssh/id_rsa
+        echo -e "${{inputs.HETZNER_SSH_KEY_PUB}}" > /home/runner/.ssh/id_rsa.pub
+        chmod 700 /home/runner/.ssh/id_rsa

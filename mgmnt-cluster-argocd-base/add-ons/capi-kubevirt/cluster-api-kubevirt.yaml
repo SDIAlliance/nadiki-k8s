@@ -1,0 +1,125 @@
+---
+apiVersion: operator.cluster.x-k8s.io/v1alpha1
+kind: CoreProvider
+metadata:
+  name: cluster-api
+spec:
+  version: v1.4.4
+  manager:
+    featureGates:
+      ClusterTopology: true
+  deployment:
+    containers: []
+    # Run on storage nodes to prevent routing issue to vip on control & compute nodes
+    affinity:
+      nodeAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+          nodeSelectorTerms:
+            - matchExpressions:
+                - key: 'kaas/group'
+                  operator: In
+                  values:
+                    - 'storage'
+    tolerations:
+      - key: "kaas"
+        operator: "Equal"
+        value: "storage"
+        effect: "NoSchedule"
+---
+apiVersion: operator.cluster.x-k8s.io/v1alpha1
+kind: BootstrapProvider
+metadata:
+  name: kubeadm
+spec:
+  version: v1.4.4
+  deployment:
+    containers: []
+    # Run on storage nodes to prevent routing issue to vip on control & compute nodes
+    affinity:
+      nodeAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+          nodeSelectorTerms:
+            - matchExpressions:
+                - key: 'kaas/group'
+                  operator: In
+                  values:
+                    - 'storage'
+    tolerations:
+      - key: "kaas"
+        operator: "Equal"
+        value: "storage"
+        effect: "NoSchedule"
+---
+apiVersion: operator.cluster.x-k8s.io/v1alpha1
+kind: ControlPlaneProvider
+metadata:
+  name: kubeadm
+spec:
+  version: v1.4.4
+  deployment:
+    containers: []
+    # Run on storage nodes to prevent routing issue to vip on control & compute nodes
+    affinity:
+      nodeAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+          nodeSelectorTerms:
+            - matchExpressions:
+                - key: 'kaas/group'
+                  operator: In
+                  values:
+                    - 'storage'
+    tolerations:
+      - key: "kaas"
+        operator: "Equal"
+        value: "storage"
+        effect: "NoSchedule"
+---
+apiVersion: operator.cluster.x-k8s.io/v1alpha1
+kind: InfrastructureProvider
+metadata:
+  name: kubevirt
+spec:
+  version: v0.1.8
+  deployment:
+    containers: []
+    # Run on storage nodes to prevent routing issue to vip on control & compute nodes
+    affinity:
+      nodeAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+          nodeSelectorTerms:
+            - matchExpressions:
+                - key: 'kaas/group'
+                  operator: In
+                  values:
+                    - 'storage'
+    tolerations:
+      - key: "kaas"
+        operator: "Equal"
+        value: "storage"
+        effect: "NoSchedule"
+# ---
+# apiVersion: operator.cluster.x-k8s.io/v1alpha1
+# kind: ControlPlaneProvider
+# metadata:
+#   name: kamaji
+# spec:
+#   version: v0.4.0
+#   fetchConfig:
+#     url: "https://github.com/clastix/cluster-api-control-plane-provider-kamaji/releases/download"
+#   deployment:
+#     containers: []
+#     # Run on storage nodes to prevent routing issue to vip on control & compute nodes
+#     affinity:
+#       nodeAffinity:
+#         requiredDuringSchedulingIgnoredDuringExecution:
+#           nodeSelectorTerms:
+#             - matchExpressions:
+#                 - key: 'kaas/group'
+#                   operator: In
+#                   values:
+#                     - 'storage'
+#     tolerations:
+#       - key: "kaas"
+#         operator: "Equal"
+#         value: "storage"
+#         effect: "NoSchedule"

@@ -1,0 +1,205 @@
+---
+
+########################################################################################
+# METAL NODES
+########################################################################################
+
+# Install dependencies
+######################
+- name: Install dependencies
+  apt:
+    name:
+      - unzip
+
+
+# Install oras
+##############
+
+# https://oras.land/docs/installation#linux
+- name: Install oras
+  shell: "{{ item }}"
+  args:
+    executable: /bin/bash
+    creates: /usr/local/bin/oras
+  with_items:
+    - curl -LO "https://github.com/oras-project/oras/releases/download/v1.1.0/oras_1.1.0_linux_amd64.tar.gz"
+    - mkdir -p oras-install/
+    - tar -zxf oras_1.1.0_*.tar.gz -C oras-install/
+    - sudo mv oras-install/oras /usr/local/bin/
+    - rm -rf oras_1.1.0_*.tar.gz oras-install/
+
+# Configure NAT
+##############
+- name: Install ufw if it is not installed
+  apt:
+    name: ufw
+    state: latest
+
+- name: Allow everything and enable UFW
+  community.general.ufw:
+    state: enabled
+    policy: allow
+
+- name: Set logging
+  community.general.ufw:
+    logging: 'on'
+
+- name: Change forward poliy
+  lineinfile:
+    path: /etc/default/ufw
+    regexp: '^DEFAULT_FORWARD_POLICY="DROP"'
+    line: 'DEFAULT_FORWARD_POLICY="ACCEPT"'
+    backrefs: yes
+
+- name: set sysctl to forward
+  sysctl:
+    name: net.ipv4.ip_forward
+    value: 1
+    sysctl_set: yes
+    state: present
+    reload: yes
+
+- name: Add NAT to ufw
+  blockinfile:
+    path: /etc/ufw/before.rules
+    block: |
+      # NAT table rules
+      *nat
+      :POSTROUTING ACCEPT [0:0]
+
+      # Forward traffic through ens18
+      -A POSTROUTING -s 10.20.0.0/24 -o ens10f0 -j MASQUERADE
+
+      # don't delete the 'COMMIT' line or these nat table rules won't
+      # be processed
+      COMMIT
+
+    insertbefore: "^# Don't delete these required lines"
+
+- name: Restart ufw
+  service:
+    name: ufw
+    state: restarted
+    enabled: yes
+
+- name: Create talos dir
+  ansible.builtin.file:
+    path: /opt/talos
+    state: directory
+    mode: '0755'
+
+# Configure DHCP
+################
+- name: Install dependencies
+  apt:
+    name:
+      - isc-dhcp-server
+    state: present
+
+- name: Configure dhcpd
+  template:
+    src: ./templates/dhcpd.conf
+    dest: /etc/dhcp/dhcpd.conf
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Configure sidero ipxe
+  template:
+    src: ./templates/sidero-ipxe-metal.conf
+    dest: /etc/dhcp/sidero-ipxe-metal.conf
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Configure sidero ipxe
+  template:
+    src: ./templates/talos-ipxe-metal.conf
+    dest: /etc/dhcp/talos-ipxe-metal.conf
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Configure dhcpd defaults
+  template:
+    src: ./templates/isc-dhcp-server
+    dest: /etc/default/isc-dhcp-server
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Restart service dhcpd
+  ansible.builtin.systemd:
+    name: isc-dhcp-server.service
+    state: restarted
+    # state: stopped
+    enabled: yes
+
+# Configure TFTPD
+#################
+- name: Install dependencies
+  apt:
+    name:
+      - tftpd-hpa
+    state: present
+
+- name: Restart service tftpd
+  ansible.builtin.systemd:
+    name: tftpd-hpa
+    state: started
+    enabled: yes
+    # state: stopped
+    # enabled: no
+
+- name: Download pxe boot file
+  ansible.builtin.get_url:
+    url: https://boot.ipxe.org/ipxe.pxe
+    dest: /srv/tftp/ipxe.pxe
+    mode: '0444'
+    owner: tftp
+    group: tftp
+
+- name: Download efi boot file
+  ansible.builtin.get_url:
+    url: https://boot.ipxe.org/ipxe.efi
+    dest: /srv/tftp/ipxe.efi
+    mode: '0444'
+    owner: tftp
+    group: tftp
+
+- name: Download initramfs
+  ansible.builtin.get_url:
+    url: https://github.com/siderolabs/talos/releases/download/v1.7.0/initramfs-amd64.xz
+    dest: /opt/talos/initramfs-amd64.xz
+    mode: '0444'
+    owner: root
+    group: root
+
+- name: Download vmlinuz
+  ansible.builtin.get_url:
+    url: https://github.com/siderolabs/talos/releases/download/v1.7.0/vmlinuz-amd64
+    dest: /opt/talos/vmlinuz-amd64
+    mode: '0444'
+    owner: root
+    group: root
+
+# - name: Upload talos node config
+#   template:
+#     src: "./templates/{{ item }}"
+#     dest: "/opt/talos/config/{{ item }}"
+#     owner: root
+#     group: root
+#     mode: '0644'
+#   with_items:
+#     - "config-7c:fe:90:8a:93:68.yaml"
+
+# Install talosctl
+##################
+- name: Install talosctl
+  shell: "{{ item }}"
+  args:
+    executable: /bin/bash
+    creates: /usr/local/bin/talosctl
+  with_items:
+    - sudo curl -Lo /usr/local/bin/talosctl "https://github.com/talos-systems/talos/releases/latest/download/talosctl-$(uname -s | tr '[:upper:]' '[:lower:]')-amd64"
+    - chmod +x /usr/local/bin/talosctl

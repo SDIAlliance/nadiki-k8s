@@ -1,0 +1,152 @@
+---
+name: Build Kubevirt image
+
+on:  # yamllint disable-line rule:truthy
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+      - novoserve
+
+concurrency:
+  group: image-builder
+
+jobs:
+  yamllint:
+    name: 🧹 yamllint
+    runs-on: ubuntu-latest
+    steps:
+      - name: ⤵️  Check out configuration from GitHub
+        uses: actions/checkout@v4
+      - name: 🚀 Run yamllint
+        uses: frenck/action-yamllint@v1.5.0
+
+  ubuntu_build_v1_26_7:
+    runs-on: [self-hosted, hetzner]
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - run: sleep 5
+
+      - name: Build Image
+        uses: './.github/actions/build-image'
+        with:
+          k8s-version: 'v1.26.7'
+          os: ubuntu-2004
+
+  ubuntu_build_v1_27_5:
+    runs-on: [self-hosted, hetzner]
+    needs: [yamllint]
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - run: sleep 5
+
+      - name: Build Image
+        uses: './.github/actions/build-image'
+        with:
+          k8s-version: 'v1.27.5'
+          os: ubuntu-2004
+
+  ubuntu_build_v1_27_5:
+    runs-on: [self-hosted, novoserve]
+    needs: [yamllint]
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - run: sleep 5
+
+      - name: Build Image
+        uses: './.github/actions/build-image-metal'
+        with:
+          k8s-version: 'v1.27.5'
+          os: ubuntu-2004
+
+  ubuntu_build_v1_28_1:
+    runs-on: [self-hosted, hetzner]
+    needs: [yamllint]
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - run: sleep 5
+
+      - name: Build Image
+        uses: './.github/actions/build-image'
+        with:
+          k8s-version: 'v1.28.1'
+          os: ubuntu-2004
+
+  ubuntu_build_v1_28_5:
+    runs-on: [self-hosted, hetzner]
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - run: sleep 5
+
+      - name: Build Image
+        uses: './.github/actions/build-image'
+        with:
+          k8s-version: 'v1.28.5'
+          os: ubuntu-2004
+
+   windows_build_v1_26_7:
+     runs-on: [self-hosted, hetzner]
+     permissions:
+       id-token: write
+       contents: read
+     steps:
+  
+       - name: Checkout
+         uses: actions/checkout@v4
+  
+       - run: sleep 5
+  
+       - name: Build Image
+         uses: './.github/actions/build-image'
+         with:
+           k8s-version: 'v1.26.7'
+           os: windows-2019
+
+  windows_build_v1_27_5:
+    runs-on: [self-hosted, hetzner]
+    needs: [yamllint]
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - run: sleep 5
+
+      - name: Build Image
+        uses: './.github/actions/build-image'
+        with:
+          k8s-version: 'v1.27.5'
+          os: windows-2019

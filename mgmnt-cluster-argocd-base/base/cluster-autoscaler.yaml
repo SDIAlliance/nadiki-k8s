@@ -1,0 +1,145 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: cluster-autoscaler
+spec:
+  generators:
+    - matrix:
+        generators:
+          - git:
+              repoURL: https://github.com/tantlinger/mgmnt-cluster-argocd-tenants
+              revision: HEAD
+              files:
+                - path: "tenants/kubevirt/**/config.yaml"
+          - clusters:
+              selector:
+                matchLabels:
+                  clusterType: "host"
+    - matrix:
+        generators:
+          - git:
+              repoURL: https://github.com/tantlinger/mgmnt-cluster-argocd-tenants
+              revision: HEAD
+              files:
+                - path: "tenants/kamaji-kubevirt/**/config.yaml"
+          - clusters:
+              selector:
+                matchLabels:
+                  clusterType: "host"
+  template:
+    metadata:
+      name: 'tenant-{{tenant}}-cluster-autoscaler'
+    spec:
+      project: default
+      syncPolicy:
+        automated:
+          prune: true
+          allowEmpty: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true
+          - ApplyOutOfSyncOnly=true
+          - ServerSideApply=true
+      source:
+        chart: cluster-autoscaler
+        repoURL: https://kubernetes.github.io/autoscaler
+        targetRevision: 9.29.3
+        helm:
+          releaseName: cluster-autoscaler
+          values: |
+            cloudProvider: clusterapi
+            clusterAPIMode: kubeconfig-incluster
+            clusterAPIKubeconfigSecret: "{{tenant}}-kubeconfig"
+            autoDiscovery:
+              labels:
+                - namespace: "tenant-{{tenant}}"
+                # - cluster.x-k8s.io/cluster-name: "{{tenant}}"
+                # - cluster.x-k8s.io/role: worker
+            image:
+              tag: v1.25.0
+            rbac:
+              create: false
+              serviceAccount:
+                create: false
+                name: cluster-autoscaler
+            extraArgs:
+              logtostderr: true
+              stderrthreshold: info
+              v: 4
+              scale-down-delay-after-add: 2m
+              scale-down-unneeded-time: 2m
+              skip-nodes-with-system-pods: false
+            nameOverride: "{{tenant}}"
+            # Run on storage nodes to prevent routing issue to vip on control & compute nodes
+            affinity:
+              nodeAffinity:
+                requiredDuringSchedulingIgnoredDuringExecution:
+                  nodeSelectorTerms:
+                    - matchExpressions:
+                        - key: 'kaas/group'
+                          operator: In
+                          values:
+                            - 'storage'
+            tolerations:
+              - key: "kaas"
+                operator: "Equal"
+                value: "storage"
+                effect: "NoSchedule"
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: 'tenant-{{tenant}}'
+---
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: cluster-autoscaler-rbac
+  namespace: argocd
+spec:
+  generators:
+    - matrix:
+        generators:
+          - git:
+              repoURL: https://github.com/tantlinger/mgmnt-cluster-argocd-tenants
+              revision: HEAD
+              files:
+                - path: "tenants/kubevirt/**/config.yaml"
+          - clusters:
+              selector:
+                matchLabels:
+                  clusterType: "host"
+    - matrix:
+        generators:
+          - git:
+              repoURL: https://github.com/tantlinger/mgmnt-cluster-argocd-tenants
+              revision: HEAD
+              files:
+                - path: "tenants/kamaji-kubevirt/**/config.yaml"
+          - clusters:
+              selector:
+                matchLabels:
+                  clusterType: "host"
+  template:
+    metadata:
+      name: 'tenant-{{tenant}}-cluster-autoscaler-rbac'
+    spec:
+      project: default
+      source:
+        repoURL: https://github.com/tantlinger/mgmnt-cluster-argocd-base
+        targetRevision: HEAD
+        path: add-ons/cluster-autoscaler-rbac
+        helm:
+          values: |
+            tenant: "{{tenant}}"
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: 'tenant-{{tenant}}'
+      syncPolicy:
+        automated:
+          prune: true
+          allowEmpty: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true
+          - ApplyOutOfSyncOnly=true
+          - ServerSideApply=true

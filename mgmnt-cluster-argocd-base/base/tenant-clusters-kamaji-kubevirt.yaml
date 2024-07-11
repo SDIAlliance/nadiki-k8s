@@ -1,0 +1,53 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: tenant-clusters-kamaji-kubevirt
+spec:
+  generators:
+    - matrix:
+        generators:
+          - git:
+              repoURL: https://github.com/tantlinger/mgmnt-cluster-argocd-tenants
+              revision: HEAD
+              files:
+                - path: "tenants/kamaji-kubevirt/**/config.yaml"
+          - clusters:
+              selector:
+                matchLabels:
+                  clusterType: "host"
+  template:
+    metadata:
+      name: 'tenant-{{tenant}}-cluster-kamaji-kubevirt'
+    spec:
+      project: default
+      syncPolicy:
+        automated:
+          prune: true
+          allowEmpty: true
+          selfHeal: true
+        syncOptions:
+          # - CreateNamespace=true
+          - ServerSideApply=true
+          - ApplyOutOfSyncOnly=true
+      source:
+        repoURL: https://github.com/tantlinger/mgmnt-cluster-argocd-base
+        targetRevision: HEAD
+        path: clusters/kamaji-kubevirt
+        helm:
+          values: |
+            tenant: '{{tenant}}'
+            cni: '{{cni}}'
+            cluster:
+              k8s_version: '{{cluster.k8s_version}}'
+              image: '{{cluster.image}}'
+              controlplane:
+                count: '{{cluster.controlplane.count}}'
+              workers:
+                min_count: '{{cluster.workers.min_count}}'
+                max_count: '{{cluster.workers.max_count}}'
+                memory: '{{cluster.workers.memory}}'
+                cores: '{{cluster.workers.cores}}'
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: 'tenant-{{tenant}}'

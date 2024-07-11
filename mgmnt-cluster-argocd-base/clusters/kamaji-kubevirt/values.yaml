@@ -1,0 +1,25 @@
+---
+# List of supported values - should not be overridden by tenant config
+supported:
+  k8s_versions:
+    # - v1.23.13
+    # - v1.24.7
+    # - v1.25.3
+    # Default image versions (https://quay.io/repository/capk/ubuntu-2004-container-disk?tab=history)
+    - v1.25.13
+    - v1.26.7
+    - v1.27.5
+    - v1.28.1
+# tenant specific parameters
+tenant: default
+cni: cilium
+cluster:
+  k8s_version: v1.26.7
+  image: ubuntu-2004
+  controlplane:
+    count: 2
+  workers:
+    min_count: 1
+    max_count: 1
+    cores: 2
+    memory: 4Gi

@@ -1,0 +1,28 @@
+# https://kubernetes.slack.com/archives/C8ED7RKFE/p1713354583772849
+# https://github.com/kubevirt/containerized-data-importer/blob/main/doc/storageprofile.md#empty-storage-profile
+---
+apiVersion: cdi.kubevirt.io/v1beta1
+kind: StorageProfile
+metadata:
+  name: longhorn
+spec:
+  claimPropertySets:
+    - accessModes:
+        - ReadWriteOnce
+      volumeMode: Block
+    - accessModes:
+        - ReadWriteOnce
+      volumeMode: Filesystem
+---
+apiVersion: cdi.kubevirt.io/v1beta1
+kind: StorageProfile
+metadata:
+  name: longhorn-v2
+spec:
+  claimPropertySets:
+    - accessModes:
+        - ReadWriteOnce
+      volumeMode: Block
+    - accessModes:
+        - ReadWriteOnce
+      volumeMode: Filesystem

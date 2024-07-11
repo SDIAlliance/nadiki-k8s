@@ -1,0 +1,26 @@
+---
+extends: default
+rules:
+  line-length:
+    max: 200
+    allow-non-breakable-words: true
+    level: warning
+
+ignore: |
+   ansible
+   clusters/kamaji-kubevirt
+   clusters/kubevirt/templates
+   clusters/hcloud/templates
+   add-ons/calico-config/templates
+   add-ons/scaphandre/templates
+   add-ons/cilium-l2-config/templates
+   add-ons/kubevirt-cloud-controller-manager/templates
+   add-ons/kubevirt/kubevirt-operator.yaml
+   add-ons/kubevirt-csi/host/templates
+   add-ons/kubevirt-csi/tenant/templates
+   add-ons/kamaji
+   add-ons/cdi/cdi-operator.yaml
+   add-ons/capi-kubevirt/kamaji.yaml
+   add-ons/capi-metal3/kamaji.yaml
+   add-ons/metal3
+   add-ons/samba-operator/operator.yaml

@@ -1,0 +1,11 @@
+[Unit]
+Description=Promtail Service
+After=network.target
+
+[Service]
+Type=simple
+User=root
+ExecStart=/usr/local/bin/promtail-linux-amd64 -config.file /etc/promtail.yaml
+
+[Install]
+WantedBy=multi-user.target

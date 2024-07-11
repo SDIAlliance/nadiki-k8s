@@ -1,0 +1,62 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: cilium
+  namespace: argocd
+spec:
+  generators:
+    - clusters:
+        selector:
+          matchLabels:
+            clusterType: "tenant"
+    # - clusters:
+    #     selector:
+    #       matchLabels:
+    #         clusterType: "host"
+  template:
+    metadata:
+      name: '{{name}}--cilium'
+    spec:
+      project: default
+      source:
+        chart: cilium
+        repoURL: https://helm.cilium.io
+        targetRevision: 1.13.4
+        helm:
+          releaseName: cilium
+          values: |
+            ipam:
+              operator:
+                clusterPoolIPv4PodCIDRList: 172.16.0.0/12
+                clusterPoolIPv4MaskSize: 24
+            MTU: 1350
+            # https://cilium.slack.com/archives/C1MATJ5U5/p1610058030366000
+            # https://cilium.io/blog/2019/07/01/cve-2019-13119/
+            # https://github.com/kubernetes-sigs/cluster-api-provider-kubevirt/issues/179
+            tunnelPort: 18473
+            hubble:
+              ui:
+                enabled: true
+              relay:
+                enabled: true
+              metrics:
+                enabled:
+                  - dns:query;ignoreAAAA
+                  - drop
+                  - tcp
+                  - flow
+                  - icmp
+                  - http
+      destination:
+        server: '{{server}}'
+        namespace: kube-system
+      syncPolicy:
+        automated:
+          prune: true
+          allowEmpty: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true
+          - ApplyOutOfSyncOnly=true
+          - ServerSideApply=true

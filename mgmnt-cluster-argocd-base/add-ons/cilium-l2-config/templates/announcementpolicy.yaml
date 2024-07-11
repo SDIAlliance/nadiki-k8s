@@ -1,0 +1,15 @@
+apiVersion: "cilium.io/v2alpha1"
+kind: CiliumL2AnnouncementPolicy
+metadata:
+  name: "{{.Values.pool_name}}"
+spec:
+  nodeSelector:
+    matchExpressions:
+      - key: kaas/group
+        operator: In
+        values:
+          - compute
+  interfaces:
+    - "{{.Values.interface}}"
+  externalIPs: {{.Values.external_ips}}
+  loadBalancerIPs: {{.Values.loadbalancer_ips}}

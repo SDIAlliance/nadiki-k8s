@@ -1,0 +1,9 @@
+{
+  "build_name": "windows-2019-v1.26.7",
+  "kubernetes_semver": "v1.26.7",
+  "kubernetes_series": "v1.26",
+  "cpus": "4",
+  "memory": "8092",
+  "disk_size": "101920",
+  "custom_role_names": "tantlinger-windows"
+}

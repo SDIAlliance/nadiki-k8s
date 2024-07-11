@@ -1,0 +1,53 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: kyverno
+spec:
+  project: default
+  syncPolicy:
+    automated:
+      prune: true
+      allowEmpty: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+  source:
+    chart: kyverno
+    repoURL: https://kyverno.github.io/kyverno/
+    targetRevision: '3.1.4'
+    helm:
+      releaseName: kyverno
+      values: |
+        config:
+          logging:
+            verbosity: 4
+        admissionController:
+          replicas: 3
+        backgroundController:
+          replicas: 2
+        cleanupController:
+          replicas: 2
+        reportsController:
+          replicas: 2
+        cleanupController:
+          rbac:
+            clusterRole:
+              extraResources:
+                - apiGroups:
+                    - ''
+                  resources:
+                    - namespaces
+                    - secrets
+                  verbs:
+                    - delete
+                    - list
+                    - watch
+        grafana:
+          enabled: true
+          grafanaDashboard:
+            enabled: true
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: 'kyverno'

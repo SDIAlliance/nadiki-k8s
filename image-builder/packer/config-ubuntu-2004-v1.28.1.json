@@ -1,0 +1,9 @@
+{
+  "build_name": "ubuntu-2004-v1.28.1",
+  "kubernetes_deb_version": "1.28.1-1.1",
+  "kubernetes_semver": "v1.28.1",
+  "kubernetes_series": "v1.28",
+  "cpus": "4",
+  "memory": "8092",
+  "custom_role_names": "tantlinger-linux"
+}

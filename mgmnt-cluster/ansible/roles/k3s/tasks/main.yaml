@@ -1,0 +1,104 @@
+---
+- name: Creates kubectl config directory
+  file:
+    path: /root/.kube/
+    state: directory
+    mode: '0700'
+    recurse: yes
+
+- name: Link k3s config to kubeconfig on control nodes
+  ansible.builtin.file:
+    src: /etc/rancher/k3s/k3s.yaml
+    dest: /root/.kube/config
+    state: link
+
+- name: Install stern
+  command: "{{ item }}"
+  with_items:
+    - curl -L https://github.com/stern/stern/releases/download/v1.24.0/stern_1.24.0_linux_amd64.tar.gz -o stern.tgz
+    - tar xvfz stern.tgz
+    - chmod +x ./stern
+    - sudo mv ./stern /usr/local/bin/stern
+
+- name: Install helm
+  command: "{{ item }}"
+  with_items:
+    - curl -L https://get.helm.sh/helm-v3.12.0-linux-amd64.tar.gz -o helm-v3.12.0-linux-amd64.tar.gz
+    - tar xvfz helm-v3.12.0-linux-amd64.tar.gz
+    - mv linux-amd64/helm /usr/local/bin/helm
+    - helm repo add cilium https://helm.cilium.io/
+
+- name: Install helm diff
+  kubernetes.core.helm_plugin:
+    plugin_path: "https://github.com/databus23/helm-diff"
+    state: present
+
+# https://docs.cilium.io/en/v1.12/gettingstarted/k3s/
+- name: Deploy Cilium
+  kubernetes.core.helm:
+    name: cilium
+    chart_repo_url: https://helm.cilium.io/
+    chart_ref: cilium
+    chart_version: "{{cilium_version}}"
+    values:
+      kubeProxyReplacement: strict
+      k8sServiceHost: "{{k8s_service_host}}"
+      k8sServicePort: 6443
+      operator:
+        clusterPoolIPv4PodCIDRList: "{{kube_pods_subnet}}"
+        clusterPoolIPv4MaskSize: 24
+      ipv4:
+        enabled: true
+      socketLB:
+        enabled: true
+        hostNamespaceOnly: true
+      ingressController:
+        enabled: "{{cilium_ingress_enabled}}"
+        enforceHttps: false
+      externalIPs:
+        enabled: true
+      nodePort:
+        enabled: true
+      hostPort:
+        enabled: true
+      # hostFirewall:
+      #   enabled: false
+      # PolicyAuditMode: true
+      # policyEnforcementMode: always
+      # extraConfig:
+      #   allow-localhost: auto
+      hubble:
+        ui:
+          enabled: true
+        relay:
+          enabled: true
+        metrics:
+          enabled:
+            - dns:query;ignoreAAAA
+            - drop
+            - tcp
+            - flow
+            - icmp
+            - http
+      operator:
+        replicas: 2
+      l2announcements:
+        enabled: "{{cilium_l2announcements}}"
+      # https://docs.cilium.io/en/stable/network/l2-announcements/#sizing-client-rate-limit
+      k8sClientRateLimit:
+        # -- The sustained request rate in requests per second.
+        qps: 100
+        # -- The burst request rate in requests per second.
+        # The rate limiter will allow short bursts with a higher rate.
+        burst: 150
+    create_namespace: true
+    release_namespace: kube-system
+
+- name: Deploy ArgoCD
+  kubernetes.core.helm:
+    name: argo-cd
+    chart_repo_url: https://argoproj.github.io/argo-helm
+    chart_ref: argo-cd
+    chart_version: 5.51.3
+    create_namespace: true
+    release_namespace: argocd

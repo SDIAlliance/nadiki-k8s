@@ -1,0 +1,327 @@
+---
+name: Deploy host & management clusters
+
+on:  # yamllint disable-line rule:truthy
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+concurrency:
+  group: hetzner_deployment
+
+jobs:
+  yamllint:
+    name: 🧹 yamllint
+    runs-on: ubuntu-latest
+    steps:
+      - name: ⤵️ Check out configuration from GitHub
+        uses: actions/checkout@v4
+      - name: 🚀 Run yamllint
+        uses: frenck/action-yamllint@v1.5.0
+
+  # commenting it out for now, getting 4 errors about external
+  # roles and naming
+  # ansible-lint:
+  #   name: 🧹 Ansible Lint
+  #   runs-on: ubuntu-latest
+
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - name: 🚀 Run ansible-lint
+  #       uses: ansible/ansible-lint@v24.2.0
+  #       with:
+  #         args: "ansible"
+
+  # BUILD HETZNER INFRA
+  #####################
+  build-mgmnt-infrastructure:
+    runs-on: ubuntu-latest
+    steps:
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Terraform - mgmnt cluster
+        timeout-minutes: 60
+        uses: './.github/actions/setup-infrastructure'
+        with:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_KEY }}
+          HCLOUD_TOKEN: ${{ secrets.HCLOUD_TOKEN }}
+          TF_WORKSPACE: 'mgmnt'
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false
+
+  build-host-infrastructure:
+    runs-on: ubuntu-latest
+    steps:
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Terraform - host cluster
+        timeout-minutes: 60
+        uses: './.github/actions/setup-infrastructure'
+        with:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_KEY }}
+          HCLOUD_TOKEN: ${{ secrets.HCLOUD_TOKEN_HOST }}
+          TF_WORKSPACE: 'host'
+
+  # SETUP CLUSTERS
+  ################
+  setup-mgmnt-cluster-hetzner:
+    runs-on: ubuntu-latest
+    needs: build-mgmnt-infrastructure
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - run: sleep 5
+
+      - name: Setup ssh
+        uses: './.github/actions/setup-ssh'
+        with:
+          HETZNER_SSH_KEY: ${{ secrets.HETZNER_SSH_KEY }}
+          HETZNER_SSH_KEY_PUB: ${{ secrets.HETZNER_SSH_KEY_PUB }}
+
+      - name: Ansible - mgmnt-cluster
+        uses: './.github/actions/setup-k3s-cluster'
+        timeout-minutes: 60
+        with:
+          HCLOUD_TOKEN: ${{ secrets.HCLOUD_TOKEN }}
+          ARGOCD_GITHUB_TOKEN: ${{ secrets.ARGOCD_GITHUB_TOKEN }}
+          cluster: mgmnt/hetzner
+
+  setup-mgmnt-cluster-novoserve:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - run: sleep 5
+
+      - name: Setup ssh
+        uses: './.github/actions/setup-ssh'
+        with:
+          HETZNER_SSH_KEY: ${{ secrets.HETZNER_SSH_KEY }}
+          HETZNER_SSH_KEY_PUB: ${{ secrets.HETZNER_SSH_KEY_PUB }}
+
+      - name: Ansible - mgmnt-cluster
+        uses: './.github/actions/setup-k3s-cluster'
+        timeout-minutes: 60
+        with:
+          HCLOUD_TOKEN: ${{ secrets.HCLOUD_TOKEN }}
+          ARGOCD_GITHUB_TOKEN: ${{ secrets.ARGOCD_GITHUB_TOKEN }}
+          cluster: mgmnt/novoserve
+
+  setup-host-cluster-hetzner:
+    runs-on: ubuntu-latest
+    needs: build-host-infrastructure
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - run: sleep 5
+
+      - name: Setup ssh
+        uses: './.github/actions/setup-ssh'
+        with:
+          HETZNER_SSH_KEY: ${{ secrets.HETZNER_SSH_KEY }}
+          HETZNER_SSH_KEY_PUB: ${{ secrets.HETZNER_SSH_KEY_PUB }}
+
+      - name: Ansible - host-cluster - hetzner
+        uses: './.github/actions/setup-k3s-cluster'
+        timeout-minutes: 60
+        with:
+          HCLOUD_TOKEN: ${{ secrets.HCLOUD_TOKEN }}
+          ARGOCD_GITHUB_TOKEN: ${{ secrets.ARGOCD_GITHUB_TOKEN }}
+          cluster: host/hetzner
+
+  bootstrap-clusters:
+    needs: [setup-mgmnt-cluster-hetzner, setup-mgmnt-cluster-novoserve, setup-host-cluster-hetzner]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false
+
+      - run: sleep 5
+
+      - name: Setup ssh
+        uses: './.github/actions/setup-ssh'
+        with:
+          HETZNER_SSH_KEY: ${{ secrets.HETZNER_SSH_KEY }}
+          HETZNER_SSH_KEY_PUB: ${{ secrets.HETZNER_SSH_KEY_PUB }}
+
+      - name: Terraform - Extract env vars
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_KEY }}
+          AWS_DEFAULT_REGION: 'eu-west-1'
+          TF_IN_AUTOMATION: '1'
+        timeout-minutes: 60
+        id: env_vars
+        run: |
+          cd terraform
+          terraform init -input=false
+
+          terraform workspace select mgmnt
+          echo "MGMNT_NETWORK_ID_INTERNAL_MANAGEMENT=$(terraform output -raw network_id_internal_management)" >> $GITHUB_ENV
+          echo "MGMNT_PRIMARY_IP_CONTROL1=$(terraform output -raw hcloud_primary_ip_control1)" >> $GITHUB_ENV
+          echo "MGMNT_PRIMARY_IP_CONTROL2=$(terraform output -raw hcloud_primary_ip_control2)" >> $GITHUB_ENV
+          echo "MGMNT_PRIMARY_IP_CONTROL3=$(terraform output -raw hcloud_primary_ip_control3)" >> $GITHUB_ENV
+
+          terraform workspace select host
+          echo "HOST_NETWORK_ID_INTERNAL_MANAGEMENT=$(terraform output -raw network_id_internal_management)" >> $GITHUB_ENV
+          echo "HOST_PRIMARY_IP_CONTROL1=$(terraform output -raw hcloud_primary_ip_control1)" >> $GITHUB_ENV
+          echo "HOST_PRIMARY_IP_CONTROL2=$(terraform output -raw hcloud_primary_ip_control2)" >> $GITHUB_ENV
+          echo "HOST_PRIMARY_IP_CONTROL3=$(terraform output -raw hcloud_primary_ip_control3)" >> $GITHUB_ENV
+
+          cd ..
+
+      - name: Setup kubeconfig - mgmnt-cluster - hetzner
+        shell: bash
+        run: |
+          mkdir -p ~/.kube
+          scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null root@$MGMNT_PRIMARY_IP_CONTROL1:/root/.kube/config ~/.kube/mgmnt_config_hetzner && chmod 600 ~/.kube/mgmnt_config_hetzner
+          sed -i -E 's/[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+/k8s-api.mgmnt.fsn1.tantlinger.io/g' ~/.kube/mgmnt_config_hetzner
+          export KUBECONFIG=~/.kube/mgmnt_config_hetzner
+          kubectl get nodes
+
+      - name: Setup kubeconfig - mgmnt-cluster - novoserve
+        shell: bash
+        run: |
+          mkdir -p ~/.kube
+          scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null root@11.11.11.11:/root/.kube/config ~/.kube/mgmnt_config_novoserve && chmod 600 ~/.kube/mgmnt_config_novoserve
+          sed -i -E 's/[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+/11.11.11.11/g' ~/.kube/mgmnt_config_novoserve
+          export KUBECONFIG=~/.kube/mgmnt_config_novoserve
+          kubectl get nodes
+
+      - name: Setup kubeconfig - host-cluster - hetzner
+        shell: bash
+        run: |
+          mkdir -p ~/.kube
+          scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null root@$HOST_PRIMARY_IP_CONTROL1:/root/.kube/config ~/.kube/host_config_hetzner && chmod 600 ~/.kube/host_config_hetzner
+          sed -i -E 's/[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+/k8s-api.host.fsn1.tantlinger.io/g' ~/.kube/host_config_hetzner
+          export KUBECONFIG=~/.kube/host_config_hetzner
+          kubectl get nodes
+
+      - name: Kubernetes - Bootstrap mgmnt-cluster - hetzner
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_KEY }}
+          AWS_DEFAULT_REGION: 'eu-west-1'
+          TF_VAR_hcloud_token: ${{ secrets.HCLOUD_TOKEN }}
+          TF_IN_AUTOMATION: '1'
+          TF_WORKSPACE: 'tantlinger-management'
+          ARGOCD_GITHUB_TOKEN: ${{ secrets.ARGOCD_GITHUB_TOKEN }}
+          HCLOUD_TOKEN_TENANTS: ${{ secrets.HCLOUD_TOKEN_TENANTS }}
+          HCLOUD_TOKEN_HOST: ${{ secrets.HCLOUD_TOKEN_HOST }}
+          HETZNER_WEBUSER: ${{ secrets.HETZNER_WEBUSER }}
+          HETZNER_WEBUSER_PASSWORD: ${{ secrets.HETZNER_WEBUSER_PASSWORD }}
+          HETZNER_SSH_KEY: ${{ secrets.HETZNER_SSH_KEY }}
+          HETZNER_SSH_KEY_PUB: ${{ secrets.HETZNER_SSH_KEY_PUB }}
+          ROLE: 'mgmnt'
+          LOCATION: 'fsn1'
+          PROVIDER: 'hetzner'
+        timeout-minutes: 60
+        id: bootstrap_k8s_mgmnt_cluster_hetzner
+        run: |
+          export KUBECONFIG=~/.kube/mgmnt_config_hetzner
+
+          # Create cloud secret for mgmnt project
+          kubectl create secret generic hcloud-mgmnt -n kube-system --from-literal=hcloud=$TF_VAR_hcloud_token --dry-run=client -o yaml | kubectl apply -f -
+          kubectl create secret generic hcloud-ccm -n kube-system --from-literal=location=fsn1 --dry-run=client -o yaml | kubectl apply -f -
+
+          # Create secret
+          kubectl create namespace cluster-api-hetzner --dry-run=client -o yaml | kubectl apply -f -
+
+          # Tenant clusters (hcloud)
+          kubectl create secret generic hcloud-tenants -n cluster-api-hetzner --from-literal=hcloud=$HCLOUD_TOKEN_TENANTS --dry-run=client -o yaml | kubectl apply -f -
+
+          # Host clusters (hcloud + robot)
+          # kubectl create secret generic hcloud-host -n cluster-api-hetzner --from-literal=hcloud=$HCLOUD_TOKEN_HOST --from-literal=robot-user=$HETZNER_WEBUSER \
+          #  --from-literal=robot-password=$HETZNER_WEBUSER_PASSWORD --dry-run=client -o yaml | kubectl apply -f -
+          # kubectl create secret generic robot-ssh -n cluster-api-hetzner --from-literal=sshkey-name=tantlinger-cluster-api \
+          #  --from-file=ssh-privatekey=/home/runner/.ssh/id_rsa --from-file=ssh-publickey=/home/runner/.ssh/id_rsa.pub --dry-run=client -o yaml | kubectl apply -f -
+
+          # Deploy in-cluster config
+          cat k8s/argocd-in-cluster.yaml | envsubst > k8s/argocd-in-cluster-updated.yaml
+          kubectl apply -f k8s/argocd-in-cluster-updated.yaml -n argocd
+
+          # Init base app
+          cat k8s/argocd-base-app.yaml | envsubst > k8s/argocd-base-app-updated.yaml
+          kubectl apply -f k8s/argocd-base-app-updated.yaml -n argocd
+
+      - name: Kubernetes - Bootstrap mgmnt-cluster - novoserve
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_KEY }}
+          AWS_DEFAULT_REGION: 'eu-west-1'
+          TF_VAR_hcloud_token: ${{ secrets.HCLOUD_TOKEN }}
+          TF_IN_AUTOMATION: '1'
+          TF_WORKSPACE: 'tantlinger-management'
+          ARGOCD_GITHUB_TOKEN: ${{ secrets.ARGOCD_GITHUB_TOKEN }}
+          HCLOUD_TOKEN_TENANTS: ${{ secrets.HCLOUD_TOKEN_TENANTS }}
+          HCLOUD_TOKEN_HOST: ${{ secrets.HCLOUD_TOKEN_HOST }}
+          HETZNER_WEBUSER: ${{ secrets.HETZNER_WEBUSER }}
+          HETZNER_WEBUSER_PASSWORD: ${{ secrets.HETZNER_WEBUSER_PASSWORD }}
+          HETZNER_SSH_KEY: ${{ secrets.HETZNER_SSH_KEY }}
+          HETZNER_SSH_KEY_PUB: ${{ secrets.HETZNER_SSH_KEY_PUB }}
+          ROLE: 'mgmnt'
+          LOCATION: 'ams1'
+          PROVIDER: 'novoserve'
+        timeout-minutes: 60
+        id: bootstrap_k8s_mgmnt_cluster_novoserve
+        run: |
+          export KUBECONFIG=~/.kube/mgmnt_config_novoserve
+
+          # Deploy in-cluster config
+          cat k8s/argocd-in-cluster.yaml | envsubst > k8s/argocd-in-cluster-updated.yaml
+          kubectl apply -f k8s/argocd-in-cluster-updated.yaml -n argocd
+
+          # Init base app
+          cat k8s/argocd-base-app.yaml | envsubst > k8s/argocd-base-app-updated.yaml
+          kubectl apply -f k8s/argocd-base-app-updated.yaml -n argocd
+
+      - name: Kubernetes - Bootstrap host-cluster - hetzner
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_KEY }}
+          AWS_DEFAULT_REGION: 'eu-west-1'
+          TF_VAR_hcloud_token: ${{ secrets.HCLOUD_TOKEN }}
+          TF_IN_AUTOMATION: '1'
+          TF_WORKSPACE: 'tantlinger-management'
+          ARGOCD_GITHUB_TOKEN: ${{ secrets.ARGOCD_GITHUB_TOKEN }}
+          HCLOUD_TOKEN_TENANTS: ${{ secrets.HCLOUD_TOKEN_TENANTS }}
+          HCLOUD_TOKEN_HOST: ${{ secrets.HCLOUD_TOKEN_HOST }}
+          HETZNER_WEBUSER: ${{ secrets.HETZNER_WEBUSER }}
+          HETZNER_WEBUSER_PASSWORD: ${{ secrets.HETZNER_WEBUSER_PASSWORD }}
+          HETZNER_SSH_KEY: ${{ secrets.HETZNER_SSH_KEY }}
+          HETZNER_SSH_KEY_PUB: ${{ secrets.HETZNER_SSH_KEY_PUB }}
+          ROLE: 'host'
+          LOCATION: 'fsn1'
+          PROVIDER: 'hetzner'
+        timeout-minutes: 60
+        id: bootstrap_k8s_host_cluster_hetzner
+        run: |
+          export KUBECONFIG=~/.kube/host_config_hetzner
+
+          # Add annotation for longhorn
+          # https://longhorn.io/docs/1.6.0/nodes-and-volumes/nodes/default-disk-and-node-config/#launch-longhorn-with-multiple-disks
+          kubectl annotate --overwrite node $(kubectl get nodes -l kaas/group=storage -o name | cut -d"/" -f2) node.longhorn.io/default-disks-config='[ { "path":"/var/lib/longhorn", "allowScheduling":true }, { "name":"longhorn-v2", "path":"/dev/sda", "diskType": "block", "allowScheduling":true, "tags":[ "longhorn-v2" ] }]'
+
+          # Deploy in-cluster config
+          cat k8s/argocd-in-cluster.yaml | envsubst > k8s/argocd-in-cluster-updated.yaml
+          kubectl apply -f k8s/argocd-in-cluster-updated.yaml -n argocd
+
+          # Init base app
+          cat k8s/argocd-base-app.yaml | envsubst > k8s/argocd-base-app-updated.yaml
+          kubectl apply -f k8s/argocd-base-app-updated.yaml -n argocd

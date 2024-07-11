@@ -1,0 +1,61 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: robusta
+  namespace: argocd
+spec:
+  generators:
+    - clusters:
+        selector:
+          matchLabels:
+            clusterType: "host"
+  template:
+    metadata:
+      name: '{{name}}--robusta'
+    spec:
+      project: default
+      source:
+        repoURL: 'https://robusta-charts.storage.googleapis.com'
+        targetRevision: 0.10.31
+        helm:
+          values: |-
+            clusterName: host-cluster
+            isSmallCluster: false
+            globalConfig:
+              signing_key: 1964b410-5264-4804-b4f8-093762e3367a
+              account_id: f0a7f1fb-afaf-4b4d-92f8-b4af2e71a2d3
+            sinksConfig:
+            - slack_sink:
+                name: main_slack_sink
+                slack_channel: robusta-clouds-of-europe
+                api_key: xoxb-2229569281-6866559779029-DnXeHxWR2mziBVZNIhWbGrlq
+            - robusta_sink:
+                name: robusta_ui_sink
+                token: eyJhY2NvdW50X2lkIjogImYwYTdmMWZiLWFmYWYtNGI0ZC05MmY4LWI0YWYyZTcxYTJkMyIsICJhcGlfa2V5IjogImV5SmhiR2NpT2lKSVV6STFOaUlzSW5SNWNDSTZJa3BYVkNKOS5leUp5YjJ4bElqb2lZVzV2YmlJc0ltbGhkQ0k2TVRZeU5ERTNNalF5TkN3aVpYaHdJam94T1RNNU56UTROREkwZlEuaFJMdjZQQW54MWNhdkR3bC1pWXlnQXJINHFBMERWSFluckQ3MUFzcXFQdyIsICJzdG9yZV91cmwiOiAiaHR0cHM6Ly94dnlocG94Zm10cHVxcWV5cWtzby5zdXBhYmFzZS5jbyIsICJlbWFpbCI6ICJhcGl1c2VyLWFrbm9zdGljLTg4ODIwNEByb2J1c3RhLmRldiIsICJwYXNzd29yZCI6ICIzY2FiYWE3Zi04NDM5LTQ2MjItYTRlNi1lZGUzYzM3ZjUxNTgifQ==
+            enablePlatformPlaybooks: true
+            kubewatch:
+              resources:
+                requests:
+                  cpu: 10m
+                  memory: 100Mi
+                limits:
+                  memory: 100Mi
+            runner:
+              sendAdditionalTelemetry: false
+            rsa:
+              private: LS0tLS1CRUdJTiBSU0EgUFJJVkFURSBLRVktLS0tLQpNSUlFcFFJQkFBS0NBUUVBeE52aEdSTUY3VWtSQkdKVTJENlJSd1BHVllQcW5qVG8rWVVaMHVQSS9nVnJjVGFDCjlLNlFpNzFjb2FpR0htSWZ3eGlla2RhTFloamd1TllVSTh3U1JDVXZxYUZtTjJLbGNiL3ZnS0VjVkE1YSt5eGkKbGhyTlRHdFVuNEJ1aDB5dDZrQXpGQ1Q3MWEzUTVJKy9qQkFBK3VNSy9TdEg1T1AraVo3alY5QlZjMjdjNExqQgpXcEhpcXI2Y1RGeFhjRDZ6TE9wajROdmhOWUN5cVVDNW95NUc1YUp2WlBlUFZvWVFRbHd1Qy9LbU1LczB0akdvCnRCWGZOblFkWEZhT0M0UGFyem1OWEZuQ2Y3dFZzVVlGL3o2NktneGJYTDkwekN6MTNNUEkyeUZ0c0w3dVhiQ3UKeSsrS2lXY21jL3ZEQXJySUJHZFlVT2N1cWs3bTI2bUEveitYNndJREFRQUJBb0lCQVFDUGdYYWJqOG1QUytkeQoyYmZlRitaUjdZZUV5WENjT2hmbjVjYUlmUE1GY3EvN1RQQzBMQmxGTlJxMDRpUTdPKzdKaTBYMUxJQlpWNmRpCk52VmhqeDkxdStIOTk2R0xHSWRnMzdsWmZKa3BFWG56aGt5ci9nZlJBS0VrMFR4QnQzMUV1ZDVDZmg5emlvMHcKUVRZeWhXd2hlS2VISFNrQXk4Ky9SU3VYMVZDbG4xRmljNk4xcGNBeThnQ2Jjc0Mra29KVmdwWXduWllxS0VxRQp2bnpEQmFJcHBFZmRReiswYTB0YXBNZXlQRjIrNzdCMzZQK1RPVGdscUZhdXJwWGgrR2lLalFaNUZTTzJ1TnNlCnFpc01JeWViaHYrOVpGdTRoR0x6U1pLNW5LbGwwaXAzYVRhYXJXbWlzUTFsaGZiNEs2L1FoUllmbEg2aDRLSEEKaDQyNkVGa2hBb0dCQU9PQkplbnd6cVpXQmFOeE1Jd0xVQXJxTktmNk5lY1FBeHV5OEZjeGxJZ2RNR0ZkUTJZTwozbm5Hbk8rOTQ5c0ZYS3dxZXZkdWhXaUpzOFFpVUowbGRxRWVaaS9tUnVBcml4VE1heHN1MjV3aFFvRlhiYTBQCnVNSDNaYjlMcWVNalFXUHVPRnl1U2FqY0IrMHU0WGt2Rkd1LzhXR1ZpUWxkRWdEYVcvNmxPaEV4QW9HQkFOMkUKRjJDN2pZdDR0dFREdWRYV0RadXg1ZTlUTDFwWkhJaW5xRUtydDFtRjJvcTVSQ0hkbHVjZmdDYXlDOUIrYkxzLwo0NWxiRkdBOVdMZzUvVmZRd0JEWGVxbEJoU2pXQ3NtOW03b0FreHZsNUJpTlEwajJFcURRUjI0U3dKWnJTTTBsCklra1BoSVNtQ3hSWTNOdEJIL1czWGpJVUd4S2xubWNmR0JoREFGUGJBb0dBUi9aQUFlR3ozQlYxcng5TWxkKzIKTDkycFRrRHM3K3Uyci9wSDM2ekZLTkRpenNscldrcjF3RnM4cFBEUnRDUGNEbkZaZUE2emtEK09aMG5iYWZuQgpybkVwTFptUGJiVVlSem5wM3kxUk5lK25VN1pOOE9INk5SQ0dWSjRnWE1KNEdwM3RvaE5YSlZ5RC9WaEk1Y1lvCmxYU2ZhNWliUWlUNFh1Q3pITGN5eU9FQ2dZRUFwb2VvWDVPQVRNcjZnQ2VJck1hWVFtVlNYRUpvUmY3YUlhNFIKSTlZZUo5SW1Rc1lXLzNLc0FLTkEzMVpZNVd3MTUrdVcrbkpyZGhLSWdTOHZVM1plL2dwUWI3QVBJRzBSZlNycgpTTUVuMXdCVUkxVUhzWEUwL2VxMjJIeUdoazZ2VTNKSVBTN0tURUxiNzNjQ3lsNUNYYUoxMFNZbVdEVmtTVmdwCjhBdG0wcU1DZ1lFQW1YTnJBT0VKbnRyUkw5Wm82a294eVV3NXJwSmN3YWxjKzE2c0laNE50eXk5M1BhaEZUNXYKcXdIS016cS9aTlowcDBMOUR5MXVJcDlzOWo1MTFkdFdKV1lDWTFSUllua1NaUERqSTNMdHRBVmw5SjdBRFJTUQpTWTJhSis5Z2NPTE11VG5SSkNjekF5aFhZejNRMUtwSS9FN1FNY1BLc0VpTDJHL2RMM0NwbTE0PQotLS0tLUVORCBSU0EgUFJJVkFURSBLRVktLS0tLQo=
+              public: LS0tLS1CRUdJTiBQVUJMSUMgS0VZLS0tLS0KTUlJQklqQU5CZ2txaGtpRzl3MEJBUUVGQUFPQ0FROEFNSUlCQ2dLQ0FRRUF4TnZoR1JNRjdVa1JCR0pVMkQ2UgpSd1BHVllQcW5qVG8rWVVaMHVQSS9nVnJjVGFDOUs2UWk3MWNvYWlHSG1JZnd4aWVrZGFMWWhqZ3VOWVVJOHdTClJDVXZxYUZtTjJLbGNiL3ZnS0VjVkE1YSt5eGlsaHJOVEd0VW40QnVoMHl0NmtBekZDVDcxYTNRNUkrL2pCQUEKK3VNSy9TdEg1T1AraVo3alY5QlZjMjdjNExqQldwSGlxcjZjVEZ4WGNENnpMT3BqNE52aE5ZQ3lxVUM1b3k1Rwo1YUp2WlBlUFZvWVFRbHd1Qy9LbU1LczB0akdvdEJYZk5uUWRYRmFPQzRQYXJ6bU5YRm5DZjd0VnNVWUYvejY2CktneGJYTDkwekN6MTNNUEkyeUZ0c0w3dVhiQ3V5KytLaVdjbWMvdkRBcnJJQkdkWVVPY3VxazdtMjZtQS96K1gKNndJREFRQUIKLS0tLS1FTkQgUFVCTElDIEtFWS0tLS0tCg==
+        chart: robusta
+      destination:
+        server: '{{server}}'
+        namespace: argocd
+      syncPolicy:
+        automated:
+          prune: true
+          allowEmpty: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true
+          - ServerSideApply=true
+          - ApplyOutOfSyncOnly=true

@@ -1,0 +1,18 @@
+---
+all:
+  hosts:
+    control1.mgmnt.ams1.tantlinger.io:
+      ansible_host: 11.11.11.11
+      ansible_user: root
+      k3s_control_node: true
+      k3s_agent:
+        node-name: control1.mgmnt.ams1.tantlinger.io
+        node-ip: 11.11.11.11
+  children:
+    k3s_cluster:
+      hosts:
+        control1.mgmnt.ams1.tantlinger.io: {}
+    k3s_cluster_master:
+      hosts:
+        control1.mgmnt.ams1.tantlinger.io: {}
+    ungrouped: {}

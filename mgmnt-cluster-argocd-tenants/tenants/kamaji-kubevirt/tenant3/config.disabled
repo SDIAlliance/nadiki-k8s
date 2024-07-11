@@ -1,0 +1,16 @@
+---
+tenant: tenant3
+cni: calico
+cluster:
+  k8s_version: v1.27.5
+  image: ubuntu-2004
+  controlplane:
+    count: '3'
+  workers:
+    min_count: '2'
+    max_count: '10'
+    memory: 4Gi
+    cores: '2'
+storage:
+  cephBlockpoolMaxSize: 10Gi
+  cephfsMaxSize: 10Gi

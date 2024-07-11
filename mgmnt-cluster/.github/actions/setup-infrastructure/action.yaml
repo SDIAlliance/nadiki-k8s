@@ -1,0 +1,70 @@
+---
+name: Setup infrastructure
+description: 'Sets up infrastructure using Terraform'
+
+inputs:
+  TF_WORKSPACE:
+    required: true
+  HCLOUD_TOKEN:
+    required: true
+  ARGOCD_GITHUB_TOKEN:
+    required: true
+  AWS_ACCESS_KEY_ID:
+    required: true
+  AWS_SECRET_ACCESS_KEY:
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - uses: hashicorp/setup-terraform@v3
+
+    - run: sleep 5
+      shell: bash
+
+    - name: Terraform - Run Terraform init
+      shell: bash
+      env:
+        AWS_ACCESS_KEY_ID: ${{ inputs.AWS_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ inputs.AWS_SECRET_ACCESS_KEY }}
+        AWS_DEFAULT_REGION: 'eu-west-1'
+        TF_VAR_hcloud_token: ${{ inputs.HCLOUD_TOKEN }}
+        TF_IN_AUTOMATION: '1'
+        TF_WORKSPACE: ${{ inputs.TF_WORKSPACE }}
+      id: init
+      run: |
+        echo $TF_IN_AUTOMATION $TF_WORKSPACE
+        cd terraform
+        terraform init -input=false
+        terraform workspace list | grep "\<$TF_WORKSPACE\>" || terraform workspace new $TF_WORKSPACE
+        terraform init -input=false
+
+    - name: Terraform - Run Terraform plan
+      shell: bash
+      env:
+        AWS_ACCESS_KEY_ID: ${{ inputs.AWS_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ inputs.AWS_SECRET_ACCESS_KEY }}
+        AWS_DEFAULT_REGION: 'eu-west-1'
+        TF_VAR_hcloud_token: ${{ inputs.HCLOUD_TOKEN }}
+        TF_IN_AUTOMATION: '1'
+        TF_WORKSPACE: ${{ inputs.TF_WORKSPACE }}
+      id: plan
+      run: |
+        cd terraform
+        terraform plan -no-color -out=tfplan -input=false -var-file=config/${{ inputs.TF_WORKSPACE }}.tfvars
+
+    - name: Terraform - Run Terraform apply
+      shell: bash
+      env:
+        AWS_ACCESS_KEY_ID: ${{ inputs.AWS_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ inputs.AWS_SECRET_ACCESS_KEY }}
+        AWS_DEFAULT_REGION: 'eu-west-1'
+        TF_VAR_hcloud_token: ${{ inputs.HCLOUD_TOKEN }}
+        TF_IN_AUTOMATION: '1'
+        TF_WORKSPACE: ${{ inputs.TF_WORKSPACE }}
+      id: apply
+      run: |
+        cd terraform
+        terraform apply -input=false -auto-approve tfplan
+        # UNCOMMENTING THE LINE BELOW _WILL_ DESTROY YOUR INFRASTRUCTURE!
+        # terraform destroy -input=false -auto-approve

@@ -1,0 +1,4 @@
+---
+ansible_python_interpreter: /usr/bin/python3
+kube_service_addresses: 11.11.11.11/16
+kube_pods_subnet: 11.11.11.11/16

@@ -1,0 +1,45 @@
+---
+name: Build Image
+description: 'Builds CAPI image for Tinkerbell'
+
+inputs:
+  k8s-version:
+    description: 'Kubernetes Version'
+    required: true
+  os:
+    description: 'Base Operating System'
+    required: true
+
+runs:
+  using: composite
+  steps:
+
+    # Build Kubevirt image
+    ######################
+    - name: Build Kubevirt image
+      shell: bash
+      run: |
+
+        # Clone image builder
+        SOURCE_DIR=$(pwd)
+        rm -rf ./image-builder
+
+        # git clone https://github.com/kubernetes-sigs/image-builder.git
+        git clone https://github.com/tantlinger/sig-image-builder.git image-builder
+        cd image-builder/images/capi
+
+         # Disable check for python
+        sed -i '/ensure-python.sh/d' Makefile
+
+        # Copy custom roles
+        cp -a $SOURCE_DIR/ansible/roles/* ansible/roles/
+        cp -a $SOURCE_DIR/ansible/roles/* ansible/windows/roles/
+
+        # Build Image
+        PACKER_VAR_FILES=$SOURCE_DIR/packer/config-${{ inputs.os }}-${{ inputs.k8s-version }}.json make build-qemu-${{ inputs.os }}
+
+        cd ./output
+        oras push zot-registry.mgmnt.ams1.tantlinger.io:30443/tinkerbell/ubuntu-2004:v1.27.5.gz ./ubuntu-2004-v1.27.5-kube-v1.27.5.gz:application/vnd.acme.rocket.config --insecure
+
+        # Cleanup
+        # rm -rf ./image-builder

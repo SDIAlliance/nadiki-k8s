@@ -1,0 +1,20 @@
+---
+# k3s_etcd_datastore: true
+k3s_registration_address: k8s-api.mgmnt.ams1.tantlinger.io
+cilium_version: 1.14.0
+cilium_l2announcements: false
+cilium_ingress_enabled: false
+k8s_service_host: 11.11.11.11
+k3s_server:
+  tls-san: "k8s-api.mgmnt.ams1.tantlinger.io,11.11.11.11,11.11.11.11"
+  flannel-backend: 'none'  # This needs to be in quotes
+  disable:
+    - traefik
+    # - local-storage
+    - servicelb
+  disable-network-policy: true
+  disable-kube-proxy: true
+  cluster-cidr: "{{kube_pods_subnet}}"
+  service-cidr: "{{kube_service_addresses}}"
+  node-external-ip: "{{ansible_host}}"
+k3s_registries: {"mirrors": {"111.11.11.11:30303": {"endpoint": ["http://11.11.11.11:30303"]}}, "configs": {"11.11.11.11:30303": {"auth": {"username": "nadiki", "password": "password"}}}}

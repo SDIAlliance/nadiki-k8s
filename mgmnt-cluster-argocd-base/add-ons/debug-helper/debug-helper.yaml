@@ -1,0 +1,50 @@
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: debug-helper
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: debug-helper
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-admin
+subjects:
+  - kind: ServiceAccount
+    name: debug-helper
+    namespace: debug-helper
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: debug-helper
+  labels:
+    k8s-app: debug-helper
+spec:
+  selector:
+    matchLabels:
+      name: debug-helper
+  template:
+    metadata:
+      labels:
+        name: debug-helper
+    spec:
+      serviceAccountName: debug-helper
+      tolerations:
+        - key: node-role.kubernetes.io/master
+          operator: Exists
+          effect: NoSchedule
+        - key: "kaas"
+          operator: "Equal"
+          value: "storage"
+          effect: "NoSchedule"
+      containers:
+        - name: deamonset
+          image: maartenkamoen/debugimage:latest
+          command:
+            - "sleep"
+            - "604800"
+          imagePullPolicy: Always

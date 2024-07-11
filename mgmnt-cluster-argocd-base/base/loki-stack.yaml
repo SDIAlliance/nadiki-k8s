@@ -1,0 +1,84 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: loki-stack
+  namespace: argocd
+spec:
+  generators:
+    - clusters:
+        selector:
+          matchLabels:
+            clusterType: "host"
+  template:
+    metadata:
+      name: '{{name}}--loki-stack'
+    spec:
+      project: default
+      source:
+        chart: loki-stack
+        repoURL: https://grafana.github.io/helm-charts
+        targetRevision: "2.9.11"
+        helm:
+          releaseName: loki-stack
+          values: |
+            loki:
+              enabled: true
+              isDefault: false
+              tableManager:
+                retention_deletes_enabled: true
+                retention_period: 7d
+              persistence:
+                enabled: true
+                storageClass: longhorn
+                size: 20Gi
+      destination:
+        server: '{{server}}'
+        namespace: monitoring
+      ignoreDifferences:
+        - group: apps
+          kind: StatefulSet
+          jsonPointers:
+            - /spec/volumeClaimTemplates
+      syncPolicy:
+        automated:
+          prune: true
+          allowEmpty: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true
+          - ApplyOutOfSyncOnly=true
+          - ServerSideApply=true
+---
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: loki-proxy
+  namespace: argocd
+spec:
+  generators:
+    - clusters:
+        selector:
+          matchLabels:
+            clusterType: "host"
+  template:
+    metadata:
+      name: '{{name}}--loki-proxy'
+    spec:
+      project: default
+      source:
+        repoURL: https://github.com/tantlinger/mgmnt-cluster-argocd-base
+        targetRevision: main
+        path: add-ons/loki-proxy
+      destination:
+        server: '{{server}}'
+        namespace: monitoring
+      syncPolicy:
+        automated:
+          prune: true
+          allowEmpty: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true
+          - ServerSideApply=true
+          - ApplyOutOfSyncOnly=true

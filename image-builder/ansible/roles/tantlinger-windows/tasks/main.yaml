@@ -1,0 +1,141 @@
+---
+
+# Install Chocolatey
+# - name: Install Chocolatey
+#   ansible.windows.win_powershell:
+#     script: |
+#       Set-ExecutionPolicy Bypass -Scope Process -Force; [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
+
+# - name: Install Chocolatey
+#   win_package:
+#     path: https://github.com/chocolatey/choco/releases/download/2.2.2/chocolatey-2.2.2.0.msi
+#     arguments: /install /passive /norestart
+
+# - name: Install git & vi
+#   win_chocolatey:
+#     name:
+#       - git
+#       - vi
+#     state: present
+
+# Disable NetBIOS
+- name: Disable NetBIOS system wide
+  win_netbios:
+    state: disabled
+
+# Enable windows features
+- name: Enable features
+  win_feature:
+    name:
+      - Microsoft-Windows-Subsystem-Linux
+      - Telnet-Client
+    state: present
+  register: win_feature
+
+# Disabled windows firewalL
+- name: Disable firewall
+  win_firewall:
+    state: disabled
+    profiles:
+      - Domain
+      - Public
+      - Private
+  tags: disable_firewall
+
+# Configure sshd
+- name: Remove sshd_config
+  ansible.windows.win_file:
+    path: C:\programdata\ssh\sshd_config
+    state: absent
+
+# - name: Configure sshd_config
+#   ansible.windows.win_file:
+#     src: "./templates/sshd_config"
+#     dest: C:\programdata\ssh\sshd_config
+
+- name: Enable ssh login without a password
+  win_shell: Add-Content -Path "$env:ProgramData\ssh\sshd_config" -Value "PasswordAuthentication yes`nPubkeyAuthentication yes`nSyslogFacility LOCAL0`nLogLevel Debug"
+
+# Configure tantlinger user
+- name: Create tantlinger user
+  ansible.windows.win_user:
+    name: tantlinger
+    password: password
+    state: present
+    groups:
+      - Users
+      - Administrators
+    home_directory: C:\users\tantlinger
+
+# - name: Install PsExec
+#   ansible.windows.win_copy:
+#     src: files/PsExec.exe
+#     dest: C:\windows\system32\
+
+# - name: Init tantlinger homedir
+#   ansible.windows.win_powershell:
+#     script: |
+#       psexec -u tantlinger -p password -accepteula whoami.exe
+
+# - name: Create ssh dir
+#   ansible.windows.win_file:
+#     path: C:\users\tantlinger\.ssh
+#     state: directory
+
+# # - name: Set owner of tantlinger home dir
+# #   ansible.windows.win_owner:
+# #     path: C:\users\tantlinger
+# #     user: tantlinger
+# #     recurse: true
+
+# - name: Add permissions to homedir (1)
+#   ansible.windows.win_acl:
+#     path: C:\users\tantlinger
+#     user: tantlinger
+#     rights: FullControl
+#     type: allow
+#     state: present
+
+# - name: Add permissions to homedir (2)
+#   ansible.windows.win_acl:
+#     path: C:\users\tantlinger
+#     user: NT AUTHORITY\SYSTEM
+#     rights: FullControl
+#     type: allow
+#     state: present
+
+# - name: Create authorized_keys
+#   ansible.windows.win_copy:
+#     content: |
+#       ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQCgtsTa10B5OHnOlqGvvB9Zr6YiCKK7ElsQO0EGv2baBZ0cCPrmoOTS+YG4InxdRRfOYNlVFIXK5d8RW92zsPZNmbYZgopwuBNZjp81Icvge0WwFiRG7ToSi5FBceAqS79EUaAiCi0kjTQLaxAUTCMJXrqrjXtod7v1Jgxf5IcmeA6FzAHhAlVS54xgSLmzSJbSiGZUJ44JdCJDkFisMjmyXkhXTrmL1oUuEqkXTRBFIMmOil7/5Ar+DBuhemIjvMaTlODwNl5xrrNIDpLmBXGIZOinhQhjw4Xwy34+SA90pM1a+fJZ3CuDExCUUQK13laL/1NOHpQIgCCEw6EeQrTsmXGjbvMZS8RTZ1Fu98a2kOvzVa8UqNczo7xhJM3U7y71wbA3RdpCCTBMfQli/TWG7zBZnwqHbHdDssRzCeVKB4hDfoRSLdv9oGlZ8/SFM1RrruqxqRtO+ghmSQ+6H8eCfkKoXV4HxSbcDsXXCRg2ENEM7MH1Zo1qgSZPugBvBnJ49dsbW2XiwF6RvI3p8hw/AvZj95kup24jX13z4m+8qO4iZOXZer5DmDoPZP1ukV7Vn2uWTyGqn3/Uld+2uuhAU4z8mO0a+wsmWINa0zcQmJnL6l8SWn6aH3+BCcQ0dARfb6pTDk+269AGxxE21p5pTUjPwHDcO2ieTcI8g5GL9Q== amaakam@mk
+#       ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIElWOk/ILF7RyOMbBCpJL0op4Wvkdoyc7qOaxxsxYSIv amaakam@mk
+#     dest: C:\users\tantlinger\.ssh\authorized_keys
+
+# - name: Remove Everyone permissions from authorized_keys file
+#   win_acl:
+#     path: C:\users\tantlinger\.ssh\authorized_keys
+#     user: Everyone
+#     rights: ListDirectory, ReadData, WriteData, CreateFiles, CreateDirectories, AppendData, ReadExtendedAttributes, WriteExtendedAttributes, Traverse, ExecuteFile, DeleteSubdirectoriesAndFiles, ReadAttributes, WriteAttributes, Write, Delete, ReadPermissions, Read, ReadAndExecute, Modify, ChangePermissions, TakeOwnership, Synchronize, FullControl
+#     state: absent
+#     type: allow
+
+# - name: Add permissions to authorized_keys (1)
+#   ansible.windows.win_acl:
+#     path: C:\users\tantlinger\.ssh\authorized_keys
+#     user: tantlinger
+#     rights: FullControl
+#     type: allow
+#     state: present
+
+# - name: Add permissions to authorized_keys (2)
+#   ansible.windows.win_acl:
+#     path: C:\users\tantlinger\.ssh\authorized_keys
+#     user: NT AUTHORITY\SYSTEM
+#     rights: FullControl
+#     type: allow
+#     state: present
+
+# - name: Disable inherited ACLs
+#   ansible.windows.win_acl_inheritance:
+#     path: C:\users\tantlinger\.ssh\authorized_keys
+#     state: absent

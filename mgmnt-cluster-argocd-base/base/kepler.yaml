@@ -1,0 +1,48 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: kepler
+  namespace: argocd
+spec:
+  generators:
+    - clusters:
+        selector:
+          matchLabels:
+            clusterType: "host"
+  template:
+    metadata:
+      name: '{{name}}--kepler'
+    spec:
+      project: default
+      source:
+        repoURL: 'https://sustainable-computing-io.github.io/kepler-helm-chart'
+        targetRevision: 0.5.6
+        helm:
+          values: |-
+            serviceMonitor:
+              enabled: true
+              labels:
+                # The name we gave to the Prometheus stack when installing it:
+                release: kube-prometheus-stack
+            extraEnvVars:
+              # Here we remove some metrics that we don't need
+              # for sustainability and clarity purposes
+              # (TODO: it seems it's not working, it keeps gathering all the metrics
+              # and doesn't get these environment variables in the pod, but for later)
+              EXPOSE_HW_COUNTER_METRICS: "false"
+              EXPOSE_IRQ_COUNTER_METRICS: "false"
+              EXPOSE_CGROUP_METRICS: "false"
+          chart: kepler
+      destination:
+        server: '{{server}}'
+        namespace: monitoring
+      syncPolicy:
+        automated:
+          prune: true
+          allowEmpty: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true
+          - ServerSideApply=true
+          - ApplyOutOfSyncOnly=true

@@ -1,0 +1,128 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: longhorn
+  namespace: argocd
+spec:
+  generators:
+    - clusters:
+        selector:
+          matchLabels:
+            clusterType: "host"
+  template:
+    metadata:
+      name: '{{name}}--longhorn'
+    spec:
+      project: default
+      source:
+        chart: longhorn
+        repoURL: https://charts.longhorn.io
+        targetRevision: v1.6.2
+        helm:
+          releaseName: longhorn
+          values: |
+            persistence:
+              defaultClass: true
+              defaultFsType: ext4
+              defaultMkfsParams: ""
+              defaultClassReplicaCount: 3
+              defaultDataLocality: best-effort # best-effort otherwise
+              reclaimPolicy: Delete
+              migratable: false
+              recurringJobSelector:
+                enable: false
+                jobList: []
+              backingImage:
+                enable: false
+                name: ~
+                dataSourceType: ~
+                dataSourceParameters: ~
+                expectedChecksum: ~
+              defaultNodeSelector:
+                enable: false # disable by default
+                selector: ""
+              removeSnapshotsDuringFilesystemTrim: ignored # "enabled" or "disabled" otherwise
+
+            defaultSettings:
+              createDefaultDiskLabeledNodes: true
+              taintToleration: kaas=storage:NoSchedule
+              replicaAutoBalance: best-effort
+              v1DataEngine: true
+              v2DataEngine: true
+
+            longhornUI:
+              nodeSelector:
+                kaas/group: "control"
+
+            longhornManager:
+              tolerations:
+                - key: "kaas"
+                  operator: "Equal"
+                  value: "storage"
+                  effect: "NoSchedule"
+
+            longhornDriver:
+              tolerations:
+                - key: "kaas"
+                  operator: "Equal"
+                  value: "storage"
+                  effect: "NoSchedule"
+
+            # https://github.com/longhorn/longhorn/issues/6246#issuecomment-1625065311
+            longhornConversionWebhook:
+              replicas: 0
+            longhornAdmissionWebhook:
+              replicas: 0
+            longhornRecoveryBackend:
+              replicas: 0
+
+            metrics:
+              serviceMonitor:
+                enabled: true
+
+      destination:
+        server: '{{server}}'
+        namespace: longhorn-system
+      syncPolicy:
+        automated:
+          prune: true
+          allowEmpty: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true
+          - ServerSideApply=true
+          - ApplyOutOfSyncOnly=true
+---
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: longhorn-storageclass
+  namespace: argocd
+spec:
+  generators:
+    - clusters:
+        selector:
+          matchLabels:
+            clusterType: "host"
+  template:
+    metadata:
+      name: '{{name}}--longhorn-storageclass'
+    spec:
+      project: default
+      source:
+        repoURL: https://github.com/tantlinger/mgmnt-cluster-argocd-base
+        targetRevision: HEAD
+        path: "add-ons/longhorn"
+      destination:
+        server: '{{server}}'
+        namespace: longhorn-system
+      syncPolicy:
+        automated:
+          prune: true
+          allowEmpty: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true
+          - ServerSideApply=true
+          - ApplyOutOfSyncOnly=true

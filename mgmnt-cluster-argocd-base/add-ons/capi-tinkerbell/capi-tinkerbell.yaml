@@ -1,0 +1,44 @@
+---
+apiVersion: operator.cluster.x-k8s.io/v1alpha2
+kind: CoreProvider
+metadata:
+  name: cluster-api
+spec:
+  version: v1.6.2
+  manager:
+    featureGates:
+      ClusterTopology: true
+---
+apiVersion: operator.cluster.x-k8s.io/v1alpha2
+kind: BootstrapProvider
+metadata:
+  name: kubeadm
+spec:
+  version: v1.6.2
+---
+apiVersion: operator.cluster.x-k8s.io/v1alpha2
+kind: ControlPlaneProvider
+metadata:
+  name: kubeadm
+spec:
+  version: v1.6.2
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: tinkerbell-variables
+type: Opaque
+data:
+  TINKERBELL_IP: "MTAuMjAuMC4xMQo="  # 11.11.11.11
+  # TINKERBELL_IP: "ODkuMTA1LjE5Mi4xOTUK"  # 11.11.11.11
+---
+apiVersion: operator.cluster.x-k8s.io/v1alpha2
+kind: InfrastructureProvider
+metadata:
+  name: tinkerbell
+spec:
+  version: v0.5.0
+  configSecret:
+    name: tinkerbell-variables
+  fetchConfig:
+    url: "https://github.com/tinkerbell/cluster-api-provider-tinkerbell/releases/download/v0.5.0/infrastructure-components.yaml"

@@ -1,0 +1,93 @@
+# ---
+# apiVersion: networking.k8s.io/v1
+# kind: NetworkPolicy
+# metadata:
+#   name: default-deny-ingress-policy
+#   namespace: tenant-{{.Values.tenant}}
+#   annotations:
+#     argocd.argoproj.io/sync-wave: "10"
+# spec:
+#   podSelector: {}
+#   policyTypes:
+#     - Ingress
+# ---
+# apiVersion: networking.k8s.io/v1
+# kind: NetworkPolicy
+# metadata:
+#   name: allow-self
+#   namespace: tenant-{{.Values.tenant}}
+#   annotations:
+#     argocd.argoproj.io/sync-wave: "10"
+# spec:
+#   podSelector: {}
+#   ingress:
+#     - from:
+#         - namespaceSelector:
+#             matchLabels:
+#               kubernetes.io/metadata.name: tenant-{{.Values.tenant}}
+#   policyTypes:
+#     - Ingress
+# ---
+# apiVersion: networking.k8s.io/v1
+# kind: NetworkPolicy
+# metadata:
+#   name: allow-capi-kubevirt
+#   namespace: tenant-{{.Values.tenant}}
+#   annotations:
+#     argocd.argoproj.io/sync-wave: "10"
+# spec:
+#   podSelector: {}
+#   ingress:
+#     - from:
+#         - namespaceSelector:
+#             matchLabels:
+#               kubernetes.io/metadata.name: capi-kubevirt
+#   policyTypes:
+#     - Ingress
+# ---
+# apiVersion: networking.k8s.io/v1
+# kind: NetworkPolicy
+# metadata:
+#   name: allow-argocd
+#   namespace: tenant-{{.Values.tenant}}
+#   annotations:
+#     argocd.argoproj.io/sync-wave: "10"
+# spec:
+#   podSelector: {}
+#   ingress:
+#     - from:
+#         - namespaceSelector:
+#             matchLabels:
+#               kubernetes.io/metadata.name: argocd
+#   policyTypes:
+#     - Ingress
+# ---
+# apiVersion: networking.k8s.io/v1
+# kind: NetworkPolicy
+# metadata:
+#   name: allow-external-traffic-to-api-server
+#   namespace: tenant-{{.Values.tenant}}
+#   annotations:
+#     argocd.argoproj.io/sync-wave: "10"
+# spec:
+#   podSelector: {}
+#   ingress:
+#     - ports:
+#         - port: 6443
+#   policyTypes:
+#     - Ingress
+# ---
+# apiVersion: networking.k8s.io/v1
+# kind: NetworkPolicy
+# metadata:
+#   name: allow-external-traffic-to-ssh
+#   namespace: tenant-{{.Values.tenant}}
+#   annotations:
+#     argocd.argoproj.io/sync-wave: "10"
+# spec:
+#   podSelector: {}
+#   ingress:
+#     - ports:
+#         - port: 22
+#   policyTypes:
+#     - Ingress

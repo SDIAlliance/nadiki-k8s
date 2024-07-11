@@ -1,0 +1,4 @@
+---
+metallb_addresspool: ""
+metallb_interface: ""
+metallb_pool_name: ""

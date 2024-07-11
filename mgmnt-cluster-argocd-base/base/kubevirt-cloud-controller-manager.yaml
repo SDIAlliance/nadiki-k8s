@@ -1,0 +1,52 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: kubevirt-cloud-controller-manager
+spec:
+  generators:
+    - matrix:
+        generators:
+          - git:
+              repoURL: https://github.com/tantlinger/mgmnt-cluster-argocd-tenants
+              revision: HEAD
+              files:
+                - path: "tenants/kubevirt/**/config.yaml"
+          - clusters:
+              selector:
+                matchLabels:
+                  clusterType: "host"
+    - matrix:
+        generators:
+          - git:
+              repoURL: https://github.com/tantlinger/mgmnt-cluster-argocd-tenants
+              revision: HEAD
+              files:
+                - path: "tenants/kamaji-kubevirt/**/config.yaml"
+          - clusters:
+              selector:
+                matchLabels:
+                  clusterType: "host"
+  template:
+    metadata:
+      name: 'tenant-{{tenant}}-kubevirt-cloud-controller-manager'
+    spec:
+      project: default
+      syncPolicy:
+        automated:
+          prune: true
+          allowEmpty: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true
+      source:
+        repoURL: https://github.com/tantlinger/mgmnt-cluster-argocd-base
+        targetRevision: HEAD
+        path: "add-ons/kubevirt-cloud-controller-manager"
+        helm:
+          releaseName: kubevirt-cloud-controller-manager
+          values: |
+            tenant: "{{tenant}}"
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: 'tenant-{{tenant}}'

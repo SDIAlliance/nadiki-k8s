@@ -1,0 +1,18 @@
+---
+tenant: tenant2
+cni: cilium
+cluster:
+  k8s_version: v1.25.5
+  image: ubuntu-2004
+  controlplane:
+    count: '3'
+    memory: 4Gi
+    cores: '2'
+  workers:
+    min_count: '1'
+    max_count: '10'
+    memory: 4Gi
+    cores: '2'
+storage:
+  cephBlockpoolMaxSize: 10Gi
+  cephfsMaxSize: 10Gi

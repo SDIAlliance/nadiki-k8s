@@ -1,0 +1,105 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: kamaji
+  namespace: argocd
+spec:
+  generators:
+    - clusters:
+        selector:
+          matchLabels:
+            clusterType: "host"
+  template:
+    metadata:
+      name: '{{name}}--kamaji'
+    spec:
+      project: default
+      source:
+        # chart: kamaji
+        # repoURL: https://clastix.github.io/charts
+        # targetRevision: "v0.12.6"
+        repoURL: https://github.com/tantlinger/mgmnt-cluster-argocd-base
+        targetRevision: HEAD
+        path: add-ons/kamaji
+        helm:
+          releaseName: kamaji
+          # values: |
+          #   datastore:
+          #     endpoints:
+          #       - kamaji-etcd.kamaji-etcd.svc
+          #     tlsConfig:
+          #       certificateAuthority:
+          #         certificate:
+          #           keyPath: ca.crt
+          #           name: kamaji-etcd-certs
+          #           namespace: kamaji-etcd
+          #         privateKey:
+          #           keyPath: ca.key
+          #           name: kamaji-etcd-certs
+          #           namespace: kamaji-etcd
+          #       clientCertificate:
+          #         certificate:
+          #           keyPath: tls.crt
+          #           name: kamaji-etcd-root-client-certs
+          #           namespace: kamaji-etcd
+          #         privateKey:
+          #           keyPath: tls.key
+          #           name: kamaji-etcd-root-client-certs
+          #           namespace: kamaji-etcd
+          #   etcd:
+          #     deploy: false
+          #     overrides:
+          #       caSecret:
+          #         name: kamaji-etcd-certs
+          #         namespace: kamaji-etcd
+          #       clientSecret:
+          #         name: kamaji-etcd-root-client-certs
+          #         namespace: kamaji-etcd
+      destination:
+        server: '{{server}}'
+        namespace: kamaji-system
+      syncPolicy:
+        automated:
+          prune: true
+          allowEmpty: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true
+          - ApplyOutOfSyncOnly=true
+          - ServerSideApply=true
+# ---
+# apiVersion: argoproj.io/v1alpha1
+# kind: ApplicationSet
+# metadata:
+#   name: kamaji-etcd
+#   namespace: argocd
+# spec:
+#   generators:
+#     - clusters:
+#         selector:
+#           matchLabels:
+#             clusterType: "host"
+#   template:
+#     metadata:
+#       name: '{{name}}--kamaji-etcd'
+#     spec:
+#       project: default
+#       source:
+#         chart: kamaji-etcd
+#         repoURL: https://clastix.github.io/charts
+#         targetRevision: "v0.4.1"
+#         helm:
+#           releaseName: kamaji-etcd
+#       destination:
+#         server: '{{server}}'
+#         namespace: kamaji-etcd
+#       syncPolicy:
+#         automated:
+#           prune: true
+#           allowEmpty: true
+#           selfHeal: true
+#         syncOptions:
+#           - CreateNamespace=true
+#           - ApplyOutOfSyncOnly=true
+#           - ServerSideApply=true

@@ -1,0 +1,29 @@
+[req]
+distinguished_name = req_distinguished_name
+req_extensions = v3_req
+
+[req_distinguished_name]
+countryName = IO
+countryName_default = IO
+stateOrProvinceName = Utrecht
+stateOrProvinceName_default = Utrecht
+localityName = Utrecht
+localityName_default = Utrecht
+organizationalUnitName = Tantlinger
+organizationalUnitName_default = Tantlinger
+commonName = *.tantlinger.io
+commonName_max = 64
+
+[ v3_req ]
+# Extensions to add to a certificate request
+basicConstraints = CA:FALSE
+keyUsage = nonRepudiation, digitalSignature, keyEncipherment
+subjectAltName = @alt_names
+
+[alt_names]
+DNS.1 = *.ams1.tantlinger.io
+DNS.2 = *.mgmnt.ams1.tantlinger.io
+DNS.3 = *.host.ams1.tantlinger.io
+DNS.4 = *.fsn1.tantlinger.io
+DNS.5 = *.mgmnt.fsn1.tantlinger.io
+DNS.6 = *.host.fsn1.tantlinger.io

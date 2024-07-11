@@ -1,0 +1,39 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: capi-tinkerbell
+  namespace: argocd
+spec:
+  generators:
+    - matrix:
+        generators:
+          - clusters:
+              selector:
+                matchLabels:
+                  provider: "novoserve"
+          - clusters:
+              selector:
+                matchLabels:
+                  clusterType: "mgmnt"
+  template:
+    metadata:
+      name: '{{name}}--capi-tinkerbell'
+    spec:
+      project: default
+      source:
+        repoURL: https://github.com/tantlinger/mgmnt-cluster-argocd-base
+        targetRevision: main
+        path: add-ons/capi-tinkerbell
+      destination:
+        server: '{{server}}'
+        namespace: capi-tinkerbell
+      syncPolicy:
+        automated:
+          prune: true
+          allowEmpty: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true
+          - ServerSideApply=true
+          - ApplyOutOfSyncOnly=true

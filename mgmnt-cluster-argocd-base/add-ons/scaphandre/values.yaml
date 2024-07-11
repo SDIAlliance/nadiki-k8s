@@ -1,0 +1,31 @@
+---
+image:
+  name: hubblo/scaphandre
+  tag: latest
+
+port: 8085
+
+resources:
+  limits:
+    memory: 75Mi
+  requests:
+    cpu: 75m
+    memory: 50Mi
+
+scaphandre:
+  # Currently not using args because I set it the daemonset itself
+  # TODO I'll fix that later to use the configuration from this file instead
+  args:
+    - prometheus
+    - --containers
+#  rustBacktrace: '1'
+
+# Run as root user to get proper permissions
+userID: 0
+groupID: 0
+
+serviceMonitor:
+  # Create ServiceMonitor Resource for scraping metrics using PrometheusOperator:
+  enabled: true
+  interval: 1m
+  namespace: monitoring

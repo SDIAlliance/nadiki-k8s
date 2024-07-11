@@ -1,0 +1,44 @@
+---
+name: Setup K3s
+description: 'Sets up K3s cluster'
+
+inputs:
+  cluster:
+    description: 'Cluster to setup'
+    required: true
+  HCLOUD_TOKEN:
+    required: false
+  ARGOCD_GITHUB_TOKEN:
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - uses: dorny/paths-filter@v3
+      id: ansible_changes
+      with:
+        base: 'main'
+        filters: |
+          ansible:
+            - 'ansible/${{ inputs.cluster }}/**'
+            - 'ansible/roles/**'
+
+    - name: Ansible - cluster
+      env:
+        HCLOUD_TOKEN: ${{ inputs.HCLOUD_TOKEN }}
+        PERSONAL_ACCESS_TOKEN: ${{ inputs.ARGOCD_GITHUB_TOKEN }}
+      shell: bash
+      id: ansible_cluster
+      if: steps.ansible_changes.outputs.ansible == 'true'
+      run: |
+        # Install dependencies
+        sudo apt-get remove ansible
+        python3 -m pip install --user ansible ansible-core netaddr jmespath
+
+        # Install collections
+        cd ansible/${{ inputs.cluster }}
+
+        ansible-galaxy install xanmanning.k3s monolithprojects.github_actions_runner
+
+        # Run playbook
+        ansible-playbook playbook.yaml

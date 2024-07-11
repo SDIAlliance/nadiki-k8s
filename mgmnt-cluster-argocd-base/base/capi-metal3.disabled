@@ -1,0 +1,117 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: kamaji-helm
+  namespace: argocd
+spec:
+  generators:
+    - matrix:
+        generators:
+          - clusters:
+              selector:
+                matchLabels:
+                  provider: "novoserve"
+          - clusters:
+              selector:
+                matchLabels:
+                  clusterType: "mgmnt"
+  template:
+    metadata:
+      name: '{{name}}--kamaji'
+    spec:
+      project: default
+      source:
+        chart: kamaji
+        repoURL: https://clastix.github.io/charts
+        targetRevision: "v0.15.1"
+      destination:
+        server: '{{server}}'
+        namespace: kamaji-system
+      syncPolicy:
+        automated:
+          prune: true
+          allowEmpty: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true
+          - ApplyOutOfSyncOnly=true
+          - ServerSideApply=true
+---
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: metal3
+  namespace: argocd
+spec:
+  generators:
+    - matrix:
+        generators:
+          - clusters:
+              selector:
+                matchLabels:
+                  provider: "novoserve"
+          - clusters:
+              selector:
+                matchLabels:
+                  clusterType: "mgmnt"
+  template:
+    metadata:
+      name: '{{name}}--metal3'
+    spec:
+      project: default
+      source:
+        repoURL: https://github.com/tantlinger/mgmnt-cluster-argocd-base
+        targetRevision: main
+        path: add-ons/metal3
+      destination:
+        server: '{{server}}'
+        namespace: bmo-system
+      syncPolicy:
+        automated:
+          prune: true
+          allowEmpty: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true
+          - ServerSideApply=true
+          - ApplyOutOfSyncOnly=true
+---
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: capi-metal3
+  namespace: argocd
+spec:
+  generators:
+    - matrix:
+        generators:
+          - clusters:
+              selector:
+                matchLabels:
+                  provider: "novoserve"
+          - clusters:
+              selector:
+                matchLabels:
+                  clusterType: "mgmnt"
+  template:
+    metadata:
+      name: '{{name}}--capi-metal3'
+    spec:
+      project: default
+      source:
+        repoURL: https://github.com/tantlinger/mgmnt-cluster-argocd-base
+        targetRevision: main
+        path: add-ons/capi-metal3
+      destination:
+        server: '{{server}}'
+        namespace: capi-metal3
+      syncPolicy:
+        automated:
+          prune: true
+          allowEmpty: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true
+          - ServerSideApply=true
+          - ApplyOutOfSyncOnly=true

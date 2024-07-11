@@ -1,0 +1,98 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: tinkerbell
+  namespace: argocd
+spec:
+  generators:
+    - matrix:
+        generators:
+          - clusters:
+              selector:
+                matchLabels:
+                  provider: "novoserve"
+              values:
+                interface: ens10f1
+                loadBalancerIP: 10.20.0.11
+                # interface: ens10f0
+                # loadBalancerIP: 11.11.11.11
+                trustedProxies: 10.42.0.0/24
+                # trustedProxies: 10.0.0.0/8
+          - clusters:
+              selector:
+                matchLabels:
+                  clusterType: "mgmnt"
+  template:
+    metadata:
+      name: '{{name}}--tinkerbell'
+    spec:
+      project: default
+      source:
+        chart: stack
+        repoURL: ghcr.io/tinkerbell/charts
+        targetRevision: 0.4.3
+        helm:
+          releaseName: tinkerbell
+          values: |
+            smee:
+              trustedProxies: '{{values.trustedProxies}}'
+              publicIP: '{{values.loadBalancerIP}}'
+            hegel:
+              trustedProxies: '{{values.trustedProxies}}'
+            stack:
+              loadBalancerIP: '{{values.loadBalancerIP}}'
+              kubevip:
+                interface: '{{values.interface}}'
+                image: ghcr.io/kube-vip/kube-vip:v0.7.0
+              relay:
+                sourceInterface: '{{values.interface}}'
+      destination:
+        server: '{{server}}'
+        namespace: tink-system
+      syncPolicy:
+        automated:
+          prune: true
+          allowEmpty: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true
+---
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: image-server
+  namespace: argocd
+spec:
+  generators:
+    - matrix:
+        generators:
+          - clusters:
+              selector:
+                matchLabels:
+                  provider: "novoserve"
+          - clusters:
+              selector:
+                matchLabels:
+                  clusterType: "mgmnt"
+  template:
+    metadata:
+      name: '{{name}}--image-server'
+    spec:
+      project: default
+      source:
+        repoURL: https://github.com/tantlinger/mgmnt-cluster-argocd-base
+        targetRevision: main
+        path: add-ons/image-server
+      destination:
+        server: '{{server}}'
+        namespace: image-server
+      syncPolicy:
+        automated:
+          prune: true
+          allowEmpty: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true
+          - ServerSideApply=true
+          - ApplyOutOfSyncOnly=true

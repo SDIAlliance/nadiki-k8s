@@ -1,0 +1,11 @@
+---
+tenant: tenant1
+cluster:
+  k8s_version: v1.25.11
+  image: ubuntu-22.04
+  controlplane:
+    count: '1'
+    instance_type: cx21
+  workers:
+    count: '1'
+    instance_type: cx21

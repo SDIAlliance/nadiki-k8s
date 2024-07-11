@@ -1,0 +1,74 @@
+# ---
+# apiVersion: kyverno.io/v1
+# kind: ClusterPolicy
+# metadata:
+#   name: remove-namespace-on-cluster-removal
+#   annotations:
+#     policies.kyverno.io/title: Remove Namespace on Cluster Removal
+# spec:
+#   rules:
+#     - name: remove-unwanted-label
+#       match:
+#         any:
+#         - resources:
+#             kinds:
+#             - Secret
+#       mutate:
+#         patchesJson6902: |-
+#           - path: "/metadata/labels/purpose"
+#             op: remove   
+---
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: remove-namespace-on-cluster-removal
+  annotations:
+    policies.kyverno.io/title: Remove Namespace on Cluster Removal
+spec:
+  validationFailureAction: Enforce
+  rules:
+    - name: validate-cluster-removal
+      match:
+        resources:
+          kinds:
+            - Cluster
+      validate:
+        message: "Removing associated namespace '{{request.namespace}}'"
+        pattern:
+          metadata:
+            name: tenant-{{request.namespace}}
+    - name: remove-namespace-on-cluster-removal
+      match:
+        resources:
+          kinds:
+            - Namespace
+      mutate:
+        patchesJson6902: |-
+          - op: remove
+            path: /metadata/name
+# ---
+# apiVersion: kyverno.io/v1
+# kind: ClusterPolicy
+# metadata:
+#   name: remove-argocd-secret-on-cluster-removal
+#   annotations:
+#     policies.kyverno.io/title: Remove ArgoCD secret on Cluster Removal
+# spec:
+#   rules:
+#     - name: remove-argocd-secret-on-cluster-removal
+#       match:
+#         resources:
+#           kinds:
+#             - Cluster
+#       validate:
+#         message: "Removing associated secret '{{request.namespace}}'"
+#         pattern:
+#           metadata:
+#             name: tenant-{{request.namespace}}
+#       mutate:
+#         patchStrategicMerge:
+#           metadata:
+#             name: "tenant-{{request.namespace}}"
+#             namespace: argocd
+#             kind: Secret
+#           action: delete

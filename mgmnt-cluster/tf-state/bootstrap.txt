@@ -1,0 +1,6 @@
+Bootstrapping the terraform state backend
+-----------------------------------------
+
+1) Create stack: `AWS_PROFILE=9apps-prd aws cloudformation deploy --stack-name tantlinger-tf-state --template-file tantlinger-tf-state.yaml --capabilities CAPABILITY_NAMED_IAM`
+2) Create IAM key pair
+3) Set AWS_ACCESS_KEY & AWS_SECRET_KEY repository secret variables in Github
